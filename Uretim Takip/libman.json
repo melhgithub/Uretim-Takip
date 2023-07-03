@@ -1,0 +1,29 @@
+{
+  "version": "1.0",
+  "defaultProvider": "cdnjs",
+  "libraries": [
+    {
+      "library": "jquery@3.7.0",
+      "destination": "wwwroot/lib/jquery/",
+      "files": [
+        "jquery.min.js"
+      ]
+    },
+    {
+      "library": "jquery-confirm@3.3.4",
+      "destination": "wwwroot/lib/jquery-confirm/",
+      "files": [
+        "jquery-confirm.min.js",
+        "jquery-confirm.min.css"
+      ]
+    },
+    {
+      "library": "izitoast@1.4.0",
+      "destination": "wwwroot/lib/izitoast/",
+      "files": [
+        "js/iziToast.min.js",
+        "css/iziToast.min.css"
+      ]
+    }
+  ]
+}

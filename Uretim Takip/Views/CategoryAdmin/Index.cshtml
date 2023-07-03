@@ -1,0 +1,245 @@
+﻿@using EntityLayer.Concrete
+@using Uretim_Takip.Dtos
+@using System.ComponentModel
+@using Newtonsoft.Json
+@model (List<Category> categories, CategoryFilterDto filter)
+@{
+    ViewData["Title"] = "Kategoriler";
+    Layout = "~/Views/Shared/AdminLayout.cshtml";
+}
+
+<h1>Kategori Listesi</h1>
+
+<button class="btn btn-primary" onclick="openYeniKategoriModal()">Yeni Kategori</button>
+<br />
+
+@if (TempData["Message"] != null)
+{
+    <div class="alert alert-info alert-dismissible">
+        <button type="button" class="close" data-dismiss="alert" aria-hidden="true">×</button>
+        <h5><i class="icon fas fa-info"></i> Bilgilendirme</h5>
+        @TempData["Message"]
+    </div>
+}
+
+<form id="filterForm" method="get" action="@Url.Action("Index", "CategoryAdmin")">
+    <div class="card">
+        <div class="card-header">
+            <h3 class="card-title">
+                <i class="fas fa-filter"></i>
+                Filtrele
+            </h3>
+        </div>
+        <div class="card-body">
+            <div class="row">
+
+                <div class="col-sm-12">
+                    <dt>Kategori Adı:</dt>
+                    <input type="text" class="form-control" name="name" placeholder="Kategori Adı" value="@Model.filter.Name">
+                </div>
+                <div class="col-sm-2">
+                    <dt>Durum:</dt>
+                    <select name="Status" class="form-control" data="@Enum.GetName(typeof(CategoryStatuses), Model.filter.Status)">
+                        @foreach (var enumValue in Enum.GetValues(typeof(CategoryStatuses)))
+                        {
+                            string description = ((DescriptionAttribute)typeof(CategoryStatuses)
+                                .GetMember(enumValue.ToString())[0]
+                                .GetCustomAttributes(typeof(DescriptionAttribute), false)
+                                .FirstOrDefault())?.Description ?? enumValue.ToString();
+
+                            <option value="@enumValue" selected="@((CategoryStatuses)enumValue == Model.filter.Status)">@description</option>
+                        }
+                    </select>
+                </div>
+                <div class="col-sm-12">
+                    <button type="submit" class="btn btn-primary w-100">Filtrele</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</form>
+
+<div class="card">
+    <div class="card-header">
+        <h3 class="card-title">
+            <i class="fas fa-cubes"></i>
+            Kategoriler
+        </h3>
+    </div>
+
+    <div class="card-body">
+
+        <table id="categoryTable" class="table">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Kategori Adı</th>
+                    <th>Durum</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var category in Model.categories)
+                {
+                <tr>
+                    <td>@category.ID</td>
+                    <td>@category.Name</td>
+                    @if (category.Status == (CategoryStatuses)1)
+                    {
+                        <td>AKTİF</td>
+                    }
+                    @if (category.Status == (CategoryStatuses)2)
+                    {
+                        <td>KALDIRILDI</td>
+                    }
+                <td>
+                    <button class="btn btn-primary" onclick="openEditKategoriModal(this)"
+                            data-categoryid="@category.ID"
+                            data-categoryname="@category.Name"
+                            data-categorystatus="@category.Status">
+                        Düzenle
+                    </button>
+                    <button class="btn btn-success" onclick="openApproveKategoriModal(this)"
+                            data-categoryid="@category.ID"
+                            data-categorystatus="@category.Status">
+                        Onayla
+                    </button>
+                    <button class="btn btn-warning" onclick="openDeleteKategoriModal(this)"
+                            data-categoryid="@category.ID"
+                            data-categorystatus="@category.Status">
+                        Kaldır
+                    </button>
+                </td>
+                </tr>
+                }
+            </tbody>
+        </table>
+
+    </div>
+
+</div>
+
+
+<script>
+    function openApproveKategoriModal(button) {
+    var data = button.dataset;
+     $.dialog({
+        title: 'Kategori Onayla',
+         content: `
+            <!-- ${JSON.stringify(data)} -->
+            <form method="post" action="@Url.Action("ApproveCategory", "CategoryAdmin")">
+
+                <div class="form-group">
+                    <label>Onaylamak istiyor musunuz ?</label>
+                </div>
+
+                <div class="form-group">
+                    <input type="text" id="ID" name="ID" class="form-control" value="${data.categoryid}" required hidden />
+                </div>
+
+                <div class="form-group">
+                    <input type="text" id="Status" name="Status" class="form-control" value="${data.categorystatus}" required hidden />
+                </div>
+
+                <div class="form-group">
+                    <input type="submit" value="Onayla" class="btn btn-primary w-100" />
+                </div>
+
+            </form>
+        `
+    });
+    }
+
+    function openDeleteKategoriModal(button) {
+    var data = button.dataset;
+     $.dialog({
+        title: 'Kategori Sil',
+         content: `
+            <!-- ${JSON.stringify(data)} -->
+            <form method="post" action="@Url.Action("DeleteCategory", "CategoryAdmin")">
+
+                <div class="form-group">
+                    <label>Kaldırmak istiyor musunuz ?</label>
+                </div>
+
+                <div class="form-group">
+                    <input type="text" id="ID" name="ID" class="form-control" value="${data.categoryid}" required hidden />
+
+                </div>
+
+                <div class="form-group">
+                    <input type="submit" value="Kaldır" class="btn btn-warning w-100" />
+                </div>
+
+            </form>
+        `
+    });
+    }
+
+    function openEditKategoriModal(button) {
+    var data = button.dataset;
+     $.dialog({
+        title: 'Kategori Düzenle',
+         content: `
+            <!-- ${JSON.stringify(data)} -->
+            <form method="post" action="@Url.Action("EditCategory", "CategoryAdmin")">
+
+                <div class="form-group">
+                    <input type="text" id="ID" name="ID" class="form-control" value="${data.categoryid}" required hidden />
+                </div>
+
+                <div class="form-group">
+                    <label for="Name">Firma Adı:</label>
+                    <input type="text" id="Name" name="Name" class="form-control" value="${data.categoryname}" required />
+                </div>
+
+                <div class="form-group">
+                    <label for="Status">Durum :</label>
+                    <select id="Status" name="Status" class="form-control" data="${data.categorystatus}" required>
+                        <option value="1" ${data.categorystatus == 'Approved' ? 'selected' : ''}>AKTİF</option>
+                        <option value="2" ${data.categorystatus == 'Removed' ? 'selected' : ''}>KALDIRILDI</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <input type="submit" value="Düzenle" class="btn btn-primary w-100" />
+                </div>
+
+            </form>
+        `
+    });
+}
+
+
+    function openYeniKategoriModal() {
+        $.dialog({
+            title: 'Yeni kategori oluştur',
+            content: `
+
+<form method="post" action="@Url.Action("AddCategory", "CategoryAdmin")">
+    <div class="form-group">
+        <label for="Name">Kategori Adı:</label>
+        <input type="text" id="Name" name="Name" class="form-control" required />
+    </div>
+
+    <div class="form-group">
+        <label for="Status">Durum :</label>
+        <select id="Status" name="Status" class="form-control" required>
+            <option value="1">AKTİF</option>
+            <option value="2">KALDIRILDI</option>
+        </select>
+    </div>
+
+    <div class="form-group">
+        <input type="submit" value="Oluştur" class="btn btn-primary w-100" />
+    </div>
+
+</form>
+
+`
+        });
+
+    }
+</script>
+
+
