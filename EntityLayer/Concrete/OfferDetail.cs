@@ -14,13 +14,13 @@ namespace EntityLayer.Concrete
 
         public decimal Price { get; set; }
         public double Piece { get; set; }
+
+
         public int ProductID { get; set; }
         public Product Product { get; set; }
 
 
         public int OfferID { get; set; }
         public Offer Offer { get; set; }
-
-
     }
 }

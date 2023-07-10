@@ -207,11 +207,11 @@ namespace DataAccessLayer.Migrations
                     b.Property<int>("CustomerID")
                         .HasColumnType("int");
 
-                    b.Property<double>("Piece")
-                        .HasColumnType("float");
-
                     b.Property<decimal>("Price")
                         .HasColumnType("decimal(18,2)");
+
+                    b.Property<int>("ProductPiece")
+                        .HasColumnType("int");
 
                     b.Property<int>("Status")
                         .HasColumnType("int");
@@ -269,11 +269,11 @@ namespace DataAccessLayer.Migrations
                     b.Property<int>("OfferID")
                         .HasColumnType("int");
 
-                    b.Property<double>("Piece")
-                        .HasColumnType("float");
-
                     b.Property<decimal>("Price")
                         .HasColumnType("decimal(18,2)");
+
+                    b.Property<int>("ProductPiece")
+                        .HasColumnType("int");
 
                     b.Property<int>("Status")
                         .HasColumnType("int");
@@ -350,11 +350,11 @@ namespace DataAccessLayer.Migrations
                     b.Property<int>("OfferID")
                         .HasColumnType("int");
 
-                    b.Property<double>("Piece")
-                        .HasColumnType("float");
+                    b.Property<decimal>("Price")
+                        .HasColumnType("decimal(18,2)");
 
-                    b.Property<double>("Price")
-                        .HasColumnType("float");
+                    b.Property<int>("ProductPiece")
+                        .HasColumnType("int");
 
                     b.Property<int>("Status")
                         .HasColumnType("int");

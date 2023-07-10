@@ -9,5 +9,8 @@ namespace DataAccessLayer.Abstract
 {
     public interface ICompanyDal : IGenericDal<Company>
     {
+        List<string> GetCompanyNames();
+        Company GetByName(string companyName);
+        Task<List<Company>> GetListAsync();
     }
 }

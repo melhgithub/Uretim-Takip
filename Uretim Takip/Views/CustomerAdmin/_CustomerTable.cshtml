@@ -1,0 +1,170 @@
+﻿@using EntityLayer.Concrete
+@using Uretim_Takip.Dtos
+@using System.ComponentModel
+@using Newtonsoft.Json
+@model (List<Customer> customers, CustomerFilterDto filter)
+
+@foreach (var customer in Model.customers)
+{
+    <tr>
+        <td>@customer.ID</td>
+        <td>@customer.Name</td>
+        <td>@customer.LastName</td>
+        <td>@customer.Mail</td>
+        <td>@customer.PhoneNumber</td>
+        @if (customer.Status == (CustomerStatuses)1)
+        {
+            <td>AKTİF</td>
+        }
+        @if (customer.Status == (CustomerStatuses)2)
+        {
+            <td>KALDIRILDI</td>
+        }
+        <td>@customer.Description</td>
+        <td>
+            <button class="btn btn-primary" onclick="openEditMusteriModal(this)"
+                    data-customerid="@customer.ID"
+                    data-customername="@customer.Name"
+                    data-customername="@customer.LastName"
+                    data-customermail="@customer.Mail"
+                    data-customerdescription="@customer.Description"
+                    data-customerphonenumber="@customer.PhoneNumber"
+                    data-customerpassword="@customer.Password"
+                    data-customerstatus="@customer.Status">
+                Düzenle
+            </button>
+            <button class="btn btn-success" onclick="openApproveMusteriModal(this)"
+                    data-customerid="@customer.ID"
+                    data-customerstatus="@customer.Status">
+                Onayla
+            </button>
+            <button class="btn btn-warning" onclick="openDeleteMusteriModal(this)"
+                    data-customerid="@customer.ID"
+                    data-customerstatus="@customer.Status">
+                Kaldır
+            </button>
+        </td>
+    </tr>
+}
+
+<script>
+    function openApproveMusteriModal(button) {
+    var data = button.dataset;
+     $.dialog({
+        title: 'Müşteri Onayla',
+         content: `
+            <!-- ${JSON.stringify(data)} -->
+            <form method="post" action="@Url.Action("ApproveCustomer", "CustomerAdmin")">
+
+                <div class="form-group">
+                    <label>Onaylamak istiyor musunuz ?</label>
+                </div>
+
+                <div class="form-group">
+                    <input type="text" id="ID" name="ID" class="form-control" value="${data.customerid}" required hidden />
+                </div>
+
+                <div class="form-group">
+                    <input type="text" id="Status" name="Status" class="form-control" value="${data.customerstatus}" required hidden />
+                </div>
+
+                <div class="form-group">
+                    <input type="submit" value="Onayla" class="btn btn-primary w-100" />
+                </div>
+
+            </form>
+        `
+    });
+    }
+
+    function openDeleteMusteriModal(button) {
+    var data = button.dataset;
+     $.dialog({
+        title: 'Müşteri Sil',
+         content: `
+            <!-- ${JSON.stringify(data)} -->
+            <form method="post" action="@Url.Action("DeleteCustomer", "CustomerAdmin")">
+
+                <div class="form-group">
+                    <label>Kaldırmak istiyor musunuz ?</label>
+                </div>
+
+                <div class="form-group">
+                    <input type="text" id="ID" name="ID" class="form-control" value="${data.customerid}" required hidden />
+                </div>
+
+                <div class="form-group">
+                    <input type="text" id="Status" name="Status" class="form-control" value="${data.customerstatus}" required hidden />
+                </div>
+
+                <div class="form-group">
+                    <input type="submit" value="Kaldır" class="btn btn-warning w-100" />
+                </div>
+
+            </form>
+        `
+    });
+    }
+
+    function openEditMusteriModal(button) {
+    var data = button.dataset;
+     $.dialog({
+        title: 'Müşteri Düzenle',
+         content: `
+            <!-- ${JSON.stringify(data)} -->
+            <form method="post" action="@Url.Action("EditCustomer", "CustomerAdmin")">
+
+                <div class="form-group">
+                    <input type="text" id="ID" name="ID" class="form-control" value="${data.customerid}" required hidden />
+
+                </div>
+
+                <div class="form-group">
+                    <label for="Name">Adı:</label>
+                    <input type="text" id="Name" name="Name" class="form-control" value="${data.customername}" required />
+                </div>
+
+                <div class="form-group">
+                    <label for="Name">Soyadı:</label>
+                    <input type="text" id="Lastname" name="Lastname" class="form-control" value="${data.customername}" required />
+                </div>
+
+                <div class="form-group">
+                    <label for="Material">Mail:</label>
+                    <input type="text" id="Mail" name="Mail" class="form-control" value="${data.customermail}" required />
+                </div>
+
+
+                <div class="form-group">
+                    <label for="Description">Açıklama :</label>
+                    <textarea id="Description" name="Description" class="form-control" rows="3">${data.customerdescription}</textarea>
+                </div>
+
+
+                <div class="form-group">
+                    <label for="Material">Telefon No:</label>
+                    <input type="text" id="PhoneNumber" name="PhoneNumber" class="form-control" value="${data.customerphonenumber}" required />
+                </div>
+
+                <div class="form-group">
+                    <label for="Material">Şifre:</label>
+                    <input type="text" id="Password" name="Password" class="form-control" value="${data.customerpassword}" required />
+                </div>
+
+                <div class="form-group">
+                    <label for="Status">Durum :</label>
+                    <select id="Status" name="Status" class="form-control" data="${data.customerstatus}" required>
+                        <option value="1" ${data.customerstatus == 'Approved' ? 'selected' : ''}>AKTİF</option>
+                        <option value="2" ${data.customerstatus == 'Removed' ? 'selected' : ''}>KALDIRILDI</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <input type="submit" value="Düzenle" class="btn btn-primary w-100" />
+                </div>
+
+            </form>
+        `
+    });
+}
+</script>

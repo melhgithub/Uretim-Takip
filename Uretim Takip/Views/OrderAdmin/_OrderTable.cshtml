@@ -1,0 +1,153 @@
+﻿@using EntityLayer.Concrete
+@using Uretim_Takip.Dtos
+@using System.ComponentModel
+@using Newtonsoft.Json
+@model (List<Order> orders, OrderFilterDto filter)
+
+@foreach (var order in Model.orders)
+{
+    <tr>
+        <td>@order.ID</td>
+        <td>@order.Customer?.Name</td>
+        <td>@order.Company?.Name</td>
+        <td>@order.Price</td>
+        <td>@order.ProductPiece</td>
+        <td>
+            @(order.Status == (OrderStatuses)1 ? "Siparişte" :
+      order.Status == (OrderStatuses)2 ? "KALDIRILDI" :
+      order.Status == (OrderStatuses)3 ? "Sipariş İptal Edildi" :
+      order.Status == (OrderStatuses)4 ? "Üretime Geçildi" : "")
+        </td>
+        <td>
+            @if (order.Status != (OrderStatuses)4)
+            {
+                <button class="btn btn-success" onclick="openApproveSiparisModal(this)"
+                        data-orderid="@order.ID"
+                        data-orderstatus="@order.Status">
+                    Onayla
+                </button>
+                <button class="btn btn-warning" onclick="openDeleteSiparisModal(this)"
+                        data-orderid="@order.ID"
+                        data-orderstatus="@order.Status">
+                    İptal Et
+                </button>
+                <button class="btn btn-primary" onclick="openProductionSiparisModal(this)"
+                        data-orderid="@order.ID"
+                        data-orderstatus="@order.Status">
+                    Üretime Geç
+                </button>
+            }
+
+        </td>
+    </tr>
+}
+
+<script>
+
+    function openDeleteSiparisModal(button) {
+    var data = button.dataset;
+    $.dialog({
+    title: 'Sipariş Kaldır',
+    content: `
+    <!-- ${JSON.stringify(data)} -->
+    <form method="post" action="@Url.Action("DeleteOrder", "OrderAdmin")">
+
+        <div class="form-group">
+            <label>Kaldırmak istiyor musunuz ?</label>
+        </div>
+
+        <div class="form-group">
+            <input type="text" id="ID" name="ID" class="form-control" value="${data.orderid}" required hidden />
+
+        </div>
+
+        <div class="form-group">
+            <select id="Status" name="Status" class="form-control" data="${data.orderstatus}" required hidden>
+                <option value="1" ${data.orderstatus =='Approved' ? 'selected' : '' }>Siparişte</option>
+                <option value="2" ${data.orderstatus =='Removed' ? 'selected' : '' }>KALDIRILDI</option>
+                <option value="2" ${data.orderstatus =='Cancelled' ? 'selected' : '' }>Sipariş İptal Edildi</option>
+                <option value="2" ${data.orderstatus =='Finished' ? 'selected' : '' }>Üretime Geçildi</option>
+            </select>
+        </div>
+
+        <div class="form-group">
+            <input type="submit" value="Kaldır" class="btn btn-warning w-100" />
+        </div>
+
+    </form>
+    `
+    });
+    }
+
+
+    function openApproveSiparisModal(button) {
+    var data = button.dataset;
+    $.dialog({
+    title: 'Sipariş Onayla',
+    content: `
+    <!-- ${JSON.stringify(data)} -->
+    <form method="post" action="@Url.Action("ApproveOrder", "OrderAdmin")">
+
+        <div class="form-group">
+            <label>Onaylamak istiyor musunuz ?</label>
+        </div>
+
+        <div class="form-group">
+            <input type="text" id="ID" name="ID" class="form-control" value="${data.orderid}" required hidden />
+
+        </div>
+
+        <div class="form-group">
+            <select id="Status" name="Status" class="form-control" data="${data.offerstatus}" required hidden>
+                <option value="1" ${data.orderstatus == 'Approved' ? 'selected' : ''}>Siparişte</option>
+                <option value="2" ${data.orderstatus == 'Removed' ? 'selected' : ''}>KALDIRILDI</option>
+                <option value="3" ${data.orderstatus == 'Cancelled' ? 'selected' : ''}>Sipariş İptal Edildi</option>
+                <option value="4" ${data.orderstatus == 'Finished' ? 'selected' : '' }>Üretime Geçildi</option>
+            </select>
+        </div>
+
+        <div class="form-group">
+            <input type="submit" value="Onayla" class="btn btn-primary w-100" />
+        </div>
+
+    </form>
+    `
+    });
+    }
+
+
+    function openProductionSiparisModal(button) {
+    var data = button.dataset;
+    $.dialog({
+    title: 'Üretime Geç',
+    content: `
+    <!-- ${JSON.stringify(data)} -->
+    <form method="post" action="@Url.Action("GoToProduction", "OrderAdmin")">
+
+        <div class="form-group">
+            <label>Üretime geçmek istiyor musunuz ?</label>
+        </div>
+
+        <div class="form-group">
+            <input type="text" id="ID" name="ID" class="form-control" value="${data.orderid}" required hidden />
+
+        </div>
+
+        <div class="form-group">
+            <select id="Status" name="Status" class="form-control" data="${data.offerstatus}" required hidden>
+                <option value="1" ${data.orderstatus == 'Approved' ? 'selected' : ''}>Siparişte</option>
+                <option value="2" ${data.orderstatus == 'Removed' ? 'selected' : ''}>KALDIRILDI</option>
+                <option value="3" ${data.orderstatus == 'Cancelled' ? 'selected' : ''}>Sipariş İptal Edildi</option>
+                <option value="4" ${data.orderstatus == 'Finished' ? 'selected' : '' }>Üretime Geçildi</option>
+            </select>
+        </div>
+
+        <div class="form-group">
+            <input type="submit" value="Onayla" class="btn btn-primary w-100" />
+        </div>
+
+    </form>
+    `
+    });
+    }
+</script>

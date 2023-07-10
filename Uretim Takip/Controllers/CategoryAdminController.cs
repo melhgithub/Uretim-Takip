@@ -1,7 +1,6 @@
-﻿using BusinessLayer.Concrete;
-using BusinessLayer.ValidationRules;
-using DataAccessLayer.Concrete;
+﻿using DataAccessLayer.Concrete;
 using DataAccessLayer.EntityFramework;
+using DataAccessLayer.ServiceConcrete;
 using EntityLayer.Concrete;
 using FluentValidation.Results;
 using Microsoft.AspNetCore.Mvc;
@@ -15,22 +14,15 @@ namespace Uretim_Takip.Controllers
 {
     public class CategoryAdminController : Controller
     {
-        Context context = new Context();
         CategoryManager categoryManager = new CategoryManager(new EFCategoryRepository());
-
-        private readonly Context _context;
-
-        public CategoryAdminController(Context context)
-        {
-            _context = context;
-        }
 
         public IActionResult Index(CategoryFilterDto filter)
         {
-            var categories = _context.Categories.AsQueryable();
+            var categories = categoryManager.GetList();
 
-            if (!string.IsNullOrEmpty(filter.Name)) categories = categories.Where(p => p.Name.Contains(filter.Name));
-            if (filter.Status > 0) categories = categories.Where(p => p.Status.Equals(filter.Status));
+            if (!string.IsNullOrEmpty(filter.Name)) { categories = categories.Where(p => p.Name.Contains(filter.Name)).ToList(); }
+
+            if (filter.Status > 0) { categories = categories.Where(p => p.Status.Equals(filter.Status)).ToList(); }
 
             return View((categories.ToList(), filter));
         }
@@ -38,23 +30,30 @@ namespace Uretim_Takip.Controllers
         [HttpPost]
         public IActionResult AddCategory(CategoryAddDto category)
         {
-            try
+            if(category != null)
             {
-                var categoryToAdd = new Category
+                try
                 {
-                    Name = category.Name,
-                    Status = category.Status,
-                };
-                categoryManager.CategoryAdd(categoryToAdd);
+                    var categoryToAdd = new Category
+                    {
+                        Name = category.Name,
+                        Status = category.Status,
+                    };
+                    categoryManager.CategoryAdd(categoryToAdd);
+                }
+                catch (Exception)
+                {
+                    TempData["Message"] = "Kategori eklenirken bir sorun oluştu! Lütfen bilgileri kontrol ediniz.";
+
+                    return RedirectToAction(nameof(Index));
+                }
+
+                TempData["Message"] = "Kategori başarıyla kaydedildi!";
             }
-            catch (Exception)
+            else
             {
-                TempData["Message"] = "Kategori eklenirken bir sorun oluştu! Lütfen bilgileri kontrol ediniz.";
-
-                return RedirectToAction(nameof(Index));
+                TempData["Message"] = "Hata oluştu!";
             }
-
-            TempData["Message"] = "Kategori başarıyla kaydedildi!";
 
             return RedirectToAction(nameof(Index));
         }
@@ -62,28 +61,37 @@ namespace Uretim_Takip.Controllers
         [HttpPost]
         public IActionResult EditCategory(CategoryEditDto category)
         {
-            try
+
+            if (category != null)
             {
-                var categoryToUpdate = _context.Categories.FirstOrDefault(p => p.ID == category.ID);
-
-                if (categoryToUpdate != null)
+                try
                 {
-                    categoryToUpdate.ID = category.ID;
-                    categoryToUpdate.Name = category.Name;
-                    categoryToUpdate.Status = category.Status;
-                    categoryManager.CategoryUpdate(categoryToUpdate);
+                    var categoryToUpdate = categoryManager.GetByID(category.ID);
 
-                    TempData["Message"] = "Kategori başarıyla güncellendi!";
+                    if (categoryToUpdate != null)
+                    {
+                        categoryToUpdate.ID = category.ID;
+                        categoryToUpdate.Name = category.Name;
+                        categoryToUpdate.Status = category.Status;
+                        categoryManager.CategoryUpdate(categoryToUpdate);
+
+                        TempData["Message"] = "Kategori başarıyla güncellendi!";
+                    }
+                    else
+                    {
+                        TempData["Message"] = "Güncellenmek istenen kategori bulunamadı!";
+                    }
                 }
-                else
+                catch (Exception)
                 {
-                    TempData["Message"] = "Güncellenmek istenen kategori bulunamadı!";
+                    TempData["Message"] = "Kategori güncellenirken bir sorun oluştu! Lütfen bilgileri kontrol ediniz.";
                 }
             }
-            catch (Exception)
+            else
             {
-                TempData["Message"] = "Kategori güncellenirken bir sorun oluştu! Lütfen bilgileri kontrol ediniz.";
+                TempData["Message"] = "Hata oluştu!";
             }
+
 
             return RedirectToAction(nameof(Index));
         }
@@ -91,26 +99,34 @@ namespace Uretim_Takip.Controllers
         [HttpPost]
         public IActionResult DeleteCategory(CategoryDeleteDto category)
         {
-            try
+            if (category != null)
             {
-                var categoryToDelete = _context.Categories.FirstOrDefault(p => p.ID == category.ID);
-
-                if (categoryToDelete != null)
+                try
                 {
-                    categoryToDelete.Status = (CategoryStatuses)2;
-                    categoryManager.CategoryUpdate(categoryToDelete);
+                    var categoryToDelete = categoryManager.GetByID(category.ID);
 
-                    TempData["Message"] = "Kategori başarıyla kaldırıldı!";
+                    if (categoryToDelete != null)
+                    {
+                        categoryToDelete.Status = (CategoryStatuses)2;
+                        categoryManager.CategoryUpdate(categoryToDelete);
+
+                        TempData["Message"] = "Kategori başarıyla kaldırıldı!";
+                    }
+                    else
+                    {
+                        TempData["Message"] = "Kaldırılmak istenen kategori bulunamadı!";
+                    }
                 }
-                else
+                catch (Exception)
                 {
-                    TempData["Message"] = "Kaldırılmak istenen kategori bulunamadı!";
+                    TempData["Message"] = "Kategori kaldırılırken bir sorun oluştu! Lütfen bilgileri kontrol ediniz.";
                 }
             }
-            catch (Exception)
+            else
             {
-                TempData["Message"] = "Kategori kaldırılırken bir sorun oluştu! Lütfen bilgileri kontrol ediniz.";
+                TempData["Message"] = "Hata oluştu!";
             }
+
 
             return RedirectToAction(nameof(Index));
         }
@@ -118,25 +134,32 @@ namespace Uretim_Takip.Controllers
         [HttpPost]
         public IActionResult ApproveCategory(CategoryApproveDto category)
         {
-            try
+            if (category != null)
             {
-                var categoryToApprove = _context.Categories.FirstOrDefault(p => p.ID == category.ID);
-
-                if (categoryToApprove != null)
+                try
                 {
-                    categoryToApprove.Status = (CategoryStatuses)1;
-                    categoryManager.CategoryUpdate(categoryToApprove);
+                    var categoryToApprove = categoryManager.GetByID(category.ID);
 
-                    TempData["Message"] = "Kategori başarıyla onaylandı!";
+                    if (categoryToApprove != null)
+                    {
+                        categoryToApprove.Status = (CategoryStatuses)1;
+                        categoryManager.CategoryUpdate(categoryToApprove);
+
+                        TempData["Message"] = "Kategori başarıyla onaylandı!";
+                    }
+                    else
+                    {
+                        TempData["Message"] = "Onaylanmak istenen kategori bulunamadı!";
+                    }
                 }
-                else
+                catch (Exception)
                 {
-                    TempData["Message"] = "Onaylanmak istenen kategori bulunamadı!";
+                    TempData["Message"] = "Kategori onaylanırken bir sorun oluştu! Lütfen bilgileri kontrol ediniz.";
                 }
             }
-            catch (Exception)
+            else
             {
-                TempData["Message"] = "Kategori onaylanırken bir sorun oluştu! Lütfen bilgileri kontrol ediniz.";
+                TempData["Message"] = "Hata oluştu!";
             }
 
             return RedirectToAction(nameof(Index));
@@ -144,3 +167,5 @@ namespace Uretim_Takip.Controllers
 
     }
 }
+
+

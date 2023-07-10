@@ -1,0 +1,116 @@
+﻿@using EntityLayer.Concrete
+@using Uretim_Takip.Dtos
+@using System.ComponentModel
+@using Newtonsoft.Json
+@model (List<Production> productions, ProductionFilterDto filter)
+@{
+    ViewData["Title"] = "Index";
+    Layout = "~/Views/Shared/AdminLayout.cshtml";
+}
+<h1>Üretim Listesi</h1>
+
+@if (TempData["Message"] != null)
+{
+    <div class="alert alert-info alert-dismissible">
+        <button type="button" class="close" data-dismiss="alert" aria-hidden="true">×</button>
+        <h5><i class="icon fas fa-info"></i> Bilgilendirme</h5>
+        @TempData["Message"]
+    </div>
+}
+
+<form id="filterForm" method="get" action="@Url.Action("Index", "ProductionAdmin")">
+    <div class="card">
+        <div class="card-header">
+            <h3 class="card-title">
+                <i class="fas fa-filter"></i>
+                Filtrele
+            </h3>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-sm-2">
+                    <dt>Kategori:</dt>
+                    <select name="CustomerName" class="form-control" value="@Model.filter.CustomerName">
+                        <option value="">TÜMÜ</option>
+                        @foreach (var customerName in Model.filter.Customers)
+                        {
+                            <option value="@customerName" selected="@(customerName == Model.filter.CustomerName)">@customerName</option>
+                        }
+                    </select>
+                </div>
+                <div class="col-sm-2">
+                    <dt>Firma:</dt>
+                    <select name="CompanyName" class="form-control" data="@Model.filter.CompanyName">
+                        <option value="">TÜMÜ</option>
+                        @foreach (var companyName in Model.filter.Companies)
+                        {
+                            <option value="@companyName" selected="@(companyName == Model.filter.CompanyName)">@companyName</option>
+                        }
+                    </select>
+                </div>
+
+                <div class="col-sm-1">
+                    <dt>Fiyat:</dt>
+                    <input type="number" class="form-control" name="price" placeholder="Fiyat" value="@Model.filter.Price">
+                </div>
+
+                <div class="col-sm-1">
+                    <dt>Ürün Adeti:</dt>
+                    <input type="number" class="form-control" name="productpice" placeholder="Ürün Adeti" value="@Model.filter.ProductPiece">
+                </div>
+
+                <div class="col-sm-2">
+                    <dt>Durum:</dt>
+                    <select name="Status" class="form-control" data="@Enum.GetName(typeof(ProductionStatuses), Model.filter.Status)">
+                        @foreach (var enumValue in Enum.GetValues(typeof(ProductionStatuses)))
+                        {
+                            string description = ((DescriptionAttribute)typeof(ProductionStatuses)
+                                .GetMember(enumValue.ToString())[0]
+                                .GetCustomAttributes(typeof(DescriptionAttribute), false)
+                                .FirstOrDefault())?.Description ?? enumValue.ToString();
+
+                            <option value="@enumValue" selected="@((ProductionStatuses)enumValue == Model.filter.Status)">@description</option>
+                        }
+                    </select>
+                </div>
+
+                <div class="col-sm-12">
+                    <button type="submit" class="btn btn-primary w-100">Filtrele</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</form>
+
+<div class="card">
+    <div class="card-header">
+        <h3 class="card-title">
+            <i class="fas fa-cubes"></i>
+            Üretimler
+        </h3>
+    </div>
+
+    <div class="card-body">
+
+        <table id="orderTable" class="table">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Müşteri</th>
+                    <th>Firma</th>
+                    <th>Fiyat</th>
+                    <th>Ürün Adeti</th>
+                    <th>Durum</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                @await Html.PartialAsync("_ProductionTable")
+            </tbody>
+        </table>
+
+    </div>
+
+</div>
+
+

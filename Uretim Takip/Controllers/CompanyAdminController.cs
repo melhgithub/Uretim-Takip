@@ -1,6 +1,6 @@
-﻿using BusinessLayer.Concrete;
-using DataAccessLayer.Concrete;
+﻿using DataAccessLayer.Concrete;
 using DataAccessLayer.EntityFramework;
+using DataAccessLayer.ServiceConcrete;
 using EntityLayer.Concrete;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -14,30 +14,39 @@ namespace Uretim_Takip.Controllers
 {
     public class CompanyAdminController : Controller
     {
-
-        Context context = new Context();
         ProductManager productManager = new ProductManager(new EFProductRepository());
         CategoryManager categoryManager = new CategoryManager(new EFCategoryRepository());
         CompanyManager companyManager = new CompanyManager(new EFCompanyRepository());
         CustomerManager customerManager = new CustomerManager(new EFCustomerRepository());
 
-        private readonly Context _context;
-
-        public CompanyAdminController(Context context)
-        {
-            _context = context;
-        }
-
         public IActionResult Index(CompanyFilterDto filter)
         {
-            var companies = _context.Companies.AsQueryable();
+            var companies = companyManager.GetList();
 
-            if (!string.IsNullOrEmpty(filter.Name)) companies = companies.Where(p => p.Name.Contains(filter.Name));
-            if (!string.IsNullOrEmpty(filter.Description)) companies = companies.Where(p => p.Description.Contains(filter.Description));
-            if (!string.IsNullOrEmpty(filter.PhoneNumber)) companies = companies.Where(p => p.PhoneNumber.Contains(filter.PhoneNumber));
-            if (!string.IsNullOrEmpty(filter.Mail)) companies = companies.Where(p => p.Mail.Contains(filter.Mail));
-            if (filter.Status > 0) companies = companies.Where(p => p.Status.Equals(filter.Status));
+            if (!string.IsNullOrEmpty(filter.Name))
+            {
+                companies = companies.Where(p => p.Name.Contains(filter.Name)).ToList();
+            }
 
+            if (!string.IsNullOrEmpty(filter.Description))
+            {
+                companies = companies.Where(p => p.Description.Contains(filter.Description)).ToList();
+            }
+
+            if (!string.IsNullOrEmpty(filter.PhoneNumber))
+            {
+                companies = companies.Where(p => p.PhoneNumber.Contains(filter.PhoneNumber)).ToList();
+            }
+
+            if (!string.IsNullOrEmpty(filter.Mail))
+            {
+                companies = companies.Where(p => p.Mail.Contains(filter.Mail)).ToList();
+            }
+
+            if (filter.Status > 0)
+            {
+                companies = companies.Where(p => p.Status.Equals(filter.Status)).ToList();
+            }
 
             return View((companies.ToList(), filter));
         }
@@ -73,32 +82,39 @@ namespace Uretim_Takip.Controllers
         [HttpPost]
         public IActionResult EditCompany(CompanyEditDto company)
         {
-            try
+            if (company != null)
             {
-                var companyToUpdate = _context.Companies.FirstOrDefault(p => p.ID == company.ID);
-
-                if (companyToUpdate != null)
+                try
                 {
-                    companyToUpdate.ID = company.ID;
-                    companyToUpdate.Name = company.Name;
-                    companyToUpdate.Mail = company.Mail;
-                    companyToUpdate.Description = company.Description;
-                    companyToUpdate.PhoneNumber = company.PhoneNumber;
-                    companyToUpdate.Password = company.Password;
-                    companyToUpdate.Status = company.Status;
+                    var companyToUpdate = companyManager.GetByID(company.ID);
 
-                    companyManager.CompanyUpdate(companyToUpdate);
+                    if (companyToUpdate != null)
+                    {
+                        companyToUpdate.ID = company.ID;
+                        companyToUpdate.Name = company.Name;
+                        companyToUpdate.Mail = company.Mail;
+                        companyToUpdate.Description = company.Description;
+                        companyToUpdate.PhoneNumber = company.PhoneNumber;
+                        companyToUpdate.Password = company.Password;
+                        companyToUpdate.Status = company.Status;
 
-                    TempData["Message"] = "Firma başarıyla güncellendi!";
+                        companyManager.CompanyUpdate(companyToUpdate);
+
+                        TempData["Message"] = "Firma başarıyla güncellendi!";
+                    }
+                    else
+                    {
+                        TempData["Message"] = "Güncellenmek istenen firma bulunamadı!";
+                    }
                 }
-                else
+                catch (Exception)
                 {
-                    TempData["Message"] = "Güncellenmek istenen firma bulunamadı!";
+                    TempData["Message"] = "Firma güncellenirken bir sorun oluştu! Lütfen bilgileri kontrol ediniz.";
                 }
             }
-            catch (Exception)
+            else
             {
-                TempData["Message"] = "Firma güncellenirken bir sorun oluştu! Lütfen bilgileri kontrol ediniz.";
+                TempData["Message"] = "Hata oluştu!";
             }
 
             return RedirectToAction(nameof(Index));
@@ -107,25 +123,32 @@ namespace Uretim_Takip.Controllers
         [HttpPost]
         public IActionResult DeleteCompany(CompanyDeleteDto company)
         {
-            try
+            if (company != null)
             {
-                var companyToDelete = _context.Companies.FirstOrDefault(p => p.ID == company.ID);
-
-                if (companyToDelete != null)
+                try
                 {
-                    companyToDelete.Status = (CompanyStatuses)2;
-                    companyManager.CompanyUpdate(companyToDelete);
+                    var companyToDelete = companyManager.GetByID(company.ID);
 
-                    TempData["Message"] = "Firma başarıyla kaldırıldı!";
+                    if (companyToDelete != null)
+                    {
+                        companyToDelete.Status = (CompanyStatuses)2;
+                        companyManager.CompanyUpdate(companyToDelete);
+
+                        TempData["Message"] = "Firma başarıyla kaldırıldı!";
+                    }
+                    else
+                    {
+                        TempData["Message"] = "Kaldırılmak istenen firma bulunamadı!";
+                    }
                 }
-                else
+                catch (Exception)
                 {
-                    TempData["Message"] = "Kaldırılmak istenen firma bulunamadı!";
+                    TempData["Message"] = "Firma kaldırılırken bir sorun oluştu! Lütfen bilgileri kontrol ediniz.";
                 }
             }
-            catch (Exception)
+            else
             {
-                TempData["Message"] = "Firma kaldırılırken bir sorun oluştu! Lütfen bilgileri kontrol ediniz.";
+                TempData["Message"] = "Hata oluştu!";
             }
 
             return RedirectToAction(nameof(Index));
@@ -134,25 +157,32 @@ namespace Uretim_Takip.Controllers
         [HttpPost]
         public IActionResult ApproveCompany(CompanyApproveDto company)
         {
-            try
+            if (company != null)
             {
-                var companyToApprove = _context.Companies.FirstOrDefault(p => p.ID == company.ID);
-
-                if (companyToApprove != null)
+                try
                 {
-                    companyToApprove.Status = (CompanyStatuses)1;
-                    companyManager.CompanyUpdate(companyToApprove);
+                    var companyToApprove = companyManager.GetByID(company.ID);
 
-                    TempData["Message"] = "Firma başarıyla onaylandı!";
+                    if (companyToApprove != null)
+                    {
+                        companyToApprove.Status = (CompanyStatuses)1;
+                        companyManager.CompanyUpdate(companyToApprove);
+
+                        TempData["Message"] = "Firma başarıyla onaylandı!";
+                    }
+                    else
+                    {
+                        TempData["Message"] = "Onaylanmak istenen firma bulunamadı!";
+                    }
                 }
-                else
+                catch (Exception)
                 {
-                    TempData["Message"] = "Onaylanmak istenen firma bulunamadı!";
+                    TempData["Message"] = "Firma onaylanırken bir sorun oluştu! Lütfen bilgileri kontrol ediniz.";
                 }
             }
-            catch (Exception)
+            else
             {
-                TempData["Message"] = "Firma onaylanırken bir sorun oluştu! Lütfen bilgileri kontrol ediniz.";
+                TempData["Message"] = "Hata oluştu!";
             }
 
             return RedirectToAction(nameof(Index));

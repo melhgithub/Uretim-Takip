@@ -12,18 +12,23 @@ namespace EntityLayer.Concrete
     public enum OfferStatuses
     {
         // Status.Removed.DisplayName(); //KALDIRILDI ŞEKLİNDE KULLANILACAK
+        [Description("TÜMÜ")]
+        All = 0,
 
-        [Description("Siparişte")]
+        [Description("Teklifte")]
         Approved = 1,
 
         [Description("KALDIRILDI")]
         Removed = 2,
 
-        [Description("Sipariş İptal Edildi")]
+        [Description("Teklif İptal Edildi")]
         Cancelled = 3,
 
-        [Description("Üretime Geçildi")]
-        Finished = 4
+        [Description("Siparişe Geçildi")]
+        Finished = 4,
+            
+        [Description("Beklemede")]
+        Pending = 5,
     }
     public class Offer
     {
@@ -31,18 +36,21 @@ namespace EntityLayer.Concrete
         public int ID { get; set; }
 
         [Required]
+        [Column(TypeName = "decimal(18,2)")]
         public decimal Price { get; set; }
-        [Required]
-        public double Piece { get; set; }
+
         [Required]
         public OfferStatuses Status { get; set; }
+
+        [Required]
+        public int ProductPiece { get; set; }
 
 
         //BAĞLANTILAR
 
         public List<OfferDetail> OfferDetail { get; set; }
 
-        
+
         public int CustomerID { get; set; }
         public Customer Customer { get; set; }
 

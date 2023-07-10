@@ -12,7 +12,8 @@ namespace EntityLayer.Concrete
     public enum OrderStatuses
     {
         // Status.Removed.DisplayName(); //KALDIRILDI ŞEKLİNDE KULLANILACAK
-
+        [Description("TÜMÜ")]
+        All = 0,
 
         [Description("Siparişte")]
         Approved = 1,
@@ -32,9 +33,10 @@ namespace EntityLayer.Concrete
         public int ID { get; set; }
 
         [Required]
+        [Column(TypeName = "decimal(18,2)")]
         public decimal Price { get; set; }
         [Required]
-        public double Piece { get; set; }
+        public int ProductPiece { get; set; }
         [Required]
         public OrderStatuses Status { get; set; }
 

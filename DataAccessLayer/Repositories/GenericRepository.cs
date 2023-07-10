@@ -14,8 +14,6 @@ namespace DataAccessLayer.Repositories
         private readonly Context _context;
         private readonly DbSet<T> _dbSet;
 
-
-
         public void Delete(T t)
         {
             using var c = new Context();
@@ -33,7 +31,6 @@ namespace DataAccessLayer.Repositories
         {
             using var c = new Context();
             return c.Set<T>().ToList();
-
         }
 
         public void Insert(T t)

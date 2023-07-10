@@ -2,97 +2,16 @@
 @using Uretim_Takip.Dtos
 @using System.ComponentModel
 @using Newtonsoft.Json
-@model ProductFilterDto filter
+@model ProductsViewModel
 @{
     ViewData["Title"] = "Index";
     Layout = "~/Views/Shared/AdminLayout.cshtml";
 }
-
 <h1>Ürün Listesi</h1>
 
-<button class="btn btn-primary" onclick="openYeniUrunModal()">Yeni Ürün</button>
+@await Html.PartialAsync("_ScriptImports")
 <br />
 
-@if (TempData["Message"] != null)
-{
-    <div class="alert alert-info alert-dismissible">
-        <button type="button" class="close" data-dismiss="alert" aria-hidden="true">×</button>
-        <h5><i class="icon fas fa-info"></i> Bilgilendirme</h5>
-        @TempData["Message"]
-    </div>
-}
-
-<form id="filterForm" method="get" action="@Url.Action("Filter", "ProductAdmin")">
-    <div class="card">
-        <div class="card-header">
-            <h3 class="card-title">
-                <i class="fas fa-filter"></i>
-                Filtrele
-            </h3>
-        </div>
-        <div class="card-body">
-            <div class="row">
-                <div class="col-sm-2">
-                    <dt>Kategori:</dt>
-                    <select name="CategoryName" class="form-control" value="@Model.filter.CategoryName">
-                        <option value="">TÜMÜ</option>
-                        @foreach (var categoryName in Model.filter.Categories)
-                        {
-                            <option value="@categoryName" selected="@(categoryName == Model.filter.CategoryName)">@categoryName</option>
-                        }
-                    </select>
-                </div>
-                <div class="col-sm-2">
-                    <dt>Firma:</dt>
-                    <select name="CompanyName" class="form-control" data="@Model.filter.CompanyName">
-                        <option value="">TÜMÜ</option>
-                        @foreach (var companyName in Model.filter.Companies)
-                        {
-                            <option value="@companyName" selected="@(companyName == Model.filter.CompanyName)">@companyName</option>
-                        }
-                    </select>
-                </div>
-                <div class="col-sm-2">
-                    <dt>Ürün Adı:</dt>
-                    <input type="text" class="form-control" name="name" placeholder="Ürün Adı" value="@Model.filter.Name">
-                </div>
-                <div class="col-sm-2">
-                    <dt>Malzeme:</dt>
-                    <input type="text" class="form-control" name="material" placeholder="Malzeme" value="@Model.filter.Material">
-                </div>
-                <div class="col-sm-1">
-                    <dt>Fiyat:</dt>
-                    <input type="number" class="form-control" name="price" placeholder="Fiyat" value="@Model.filter.Price">
-                </div>
-                <div class="col-sm-1">
-                    <dt>Adet:</dt>
-                    <input type="number" class="form-control" name="Piece" placeholder="Adet" value="@Model.filter.Piece">
-                </div>
-                <div class="col-sm-2">
-                    <dt>Durum:</dt>
-                    <select name="Status" class="form-control" data="@Enum.GetName(typeof(ProductStatuses), Model.filter.Status)">
-                        @foreach (var enumValue in Enum.GetValues(typeof(ProductStatuses)))
-                        {
-                            string description = ((DescriptionAttribute)typeof(ProductStatuses)
-                                .GetMember(enumValue.ToString())[0]
-                                .GetCustomAttributes(typeof(DescriptionAttribute), false)
-                                .FirstOrDefault())?.Description ?? enumValue.ToString();
-
-                            <option value="@enumValue" selected="@((ProductStatuses)enumValue == Model.filter.Status)">@description</option>
-                        }
-                    </select>
-                </div>
-                <div class="col-sm-2">
-                    <dt>Açıklama:</dt>
-                    <input type="text" class="form-control" name="description" placeholder="Açıklama" value="@Model.filter.Description">
-                </div>
-                <div class="col-sm-12">
-                    <button type="submit" class="btn btn-primary w-100">Filtrele</button>
-                </div>
-            </div>
-        </div>
-    </div>
-</form>
 
 <div class="card">
     <div class="card-header">
@@ -101,127 +20,435 @@
             Ürünler
         </h3>
     </div>
-
     <div class="card-body">
+        <button class="btn btn-primary" onclick="openYeniUrunModal()">Yeni Ürün</button>
+        <br />
 
-        <table id="productTable" class="table">
-            <thead>
-                <tr>
-                    <th>ID</th>
-                    <th>Kategori</th>
-                    <th>Firma</th>
-                    <th>Ürün Adı</th>
-                    <th>Malzeme</th>
-                    <th>Fiyat</th>
-                    <th>Adet</th>
-                    <th>Durum</th>
-                    <th>Açıklama</th>
-                    <th></th>
-                </tr>
-            </thead>
-            <tbody>
-                @await Html.PartialAsync("_ProductTable")
-            </tbody>
-        </table>
+        <div id="productTable" class="table-responsive">
+            <table id="productGrid" class="table table-bordered table-striped"></table>
+        </div>
 
     </div>
 
 </div>
 
-
-
-
 <script>
+    var firstModal = null;
 
+    $(document).ready(function () {
+        takeProductData();
+    });
+
+    function categoryFormatter(data, type, row) {
+        return row.category && row.category.name ? row.category.name : '';
+    }
+
+    function companyFormatter(data, type, row) {
+        return row.company && row.company.name ? row.company.name : '';
+    }
+
+    function takeProductData() {
+        var productGrid = $('#productGrid');
+
+        if ($.fn.DataTable.isDataTable(productGrid)) {
+            productGrid.DataTable().destroy();
+            productGrid.empty();
+        }
+
+        $.ajax({
+            url: '/ProductAdmin/GetProductData',
+            type: 'GET',
+            dataType: 'json',
+            success: function (response) {
+                var data = response.$values;
+                console.log(data);
+                $('#productGrid').DataTable({
+                    data: data,
+                    columns: [
+                        { data: 'id', title: 'ID', width: '4%' },
+                        { data: 'category', title: 'Kategori', width: '10%', render: categoryFormatter },
+                        { data: 'company', title: 'Firma', width: '10%', render: companyFormatter },
+                        { data: 'name', title: 'Ürün Adı', width: '11%' },
+                        { data: 'material', title: 'Malzeme', width: '8%' },
+                        { data: 'price', title: 'Fiyat', width: '8%' },
+                        { data: 'piece', title: 'Adet', width: '8%' },
+                        {
+                            data: 'status', title: 'Durum', width: '10%',
+                            render: function (data) {
+                                switch (data) {
+                                    case 1:
+                                        return 'SATIŞTA';
+                                    case 2:
+                                        return 'KALDIRILDI';
+                                    case 3:
+                                        return 'ONAY BEKLİYOR';
+                                    default:
+                                        return '';
+                                }
+                            }
+                        },
+                        { data: 'description', title: 'Açıklama', width: '10%' },
+                        {
+                            data: null, title: '', width: '33%',
+                            render: function (data, type, row) {
+                                return '<button class="btn btn-primary open-edit-modal" ' +
+                                    'data-productid="' + row.id + '" ' +
+                                    'data-productname="' + row.name + '" ' +
+                                    'data-productmaterial="' + row.material + '" ' +
+                                    'data-productprice="' + row.price + '" ' +
+                                    'data-productpiece="' + row.piece + '" ' +
+                                    'data-productdescription="' + row.description + '" ' +
+                                    'data-productstatus="' + row.status + '" ' +
+                                    'data-productcategory="' + row.category.name + '" ' +
+                                    'data-productcompany="' + row.company.name + '">Düzenle</button>' +
+                                    '<button class="btn btn-success open-approve-modal" ' +
+                                    'data-productid="' + row.id + '" ' +
+                                    'data-productstatus="' + row.status + '">Onayla</button>' +
+                                    '<button class="btn btn-warning open-delete-modal" ' +
+                                    'data-productid="' + row.id + '" ' +
+                                    'data-productstatus="' + row.status + '">Kaldır</button>';
+                            }
+                        }
+                    ],
+                    paging: true,
+                    lengthMenu: [10, 20, 30, 40, 50],
+                    order: [[0, 'desc']],
+                    responsive: true,
+                    autoWidth: true,
+                    width: '100%'
+                });
+
+
+
+                console.log(data);
+            },
+            error: function (error) {
+                console.log(error);
+            }
+        });
+    }
+
+
+
+    function openDeleteUrunModal(button) {
+        var data = button.dataset;
+
+        firstModal = $.dialog({
+        title: 'Ürün Kaldır',
+        content: `
+        <!-- ${JSON.stringify(data)} -->
+        <form method="post" action="@Url.Action("DeleteProduct", "ProductAdmin")">
+
+            <div class="form-group">
+                <label>Kaldırmak istiyor musunuz ?</label>
+            </div>
+
+            <div class="form-group">
+                <input type="text" id="ID" name="ID" class="form-control" value="${data.productid}" required hidden />
+
+            </div>
+
+            <div class="form-group">
+                <select id="Status" name="Status" class="form-control" data="${data.productstatus}" required hidden>
+                    <option value="1" ${data.productstatus =='Approved' ? 'selected' : '' }>SATIŞTA</option>
+                    <option value="2" ${data.productstatus =='Removed' ? 'selected' : '' }>KALDIRILDI</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <input type="submit" value="Kaldır" class="btn btn-warning w-100" />
+            </div>
+
+        </form>
+        `
+        });
+        }
+
+    function openApproveUrunModal(button) {
+        var data = button.dataset;
+        firstModal = $.dialog({
+        title: 'Ürün Onayla',
+        content: `
+        <!-- ${JSON.stringify(data)} -->
+        <form method="post" action="@Url.Action("ApproveProduct", "ProductAdmin")">
+
+            <div class="form-group">
+                <label>Onaylamak istiyor musunuz ?</label>
+            </div>
+
+            <div class="form-group">
+                <input type="text" id="ID" name="ID" class="form-control" value="${data.productid}" required hidden />
+
+            </div>
+
+            <div class="form-group">
+                <select id="Status" name="Status" class="form-control" data="${data.productstatus}" required hidden>
+                    <option value="1" ${data.productstatus == 'Approved' ? 'selected' : '' }>SATIŞTA</option>
+                    <option value="2" ${data.productstatus == 'Removed' ? 'selected' : '' }>KALDIRILDI</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <input type="submit" value="Onayla" class="btn btn-primary w-100" />
+            </div>
+
+        </form>
+        `
+        });
+        }
+
+    function openEditUrunModal(button) {
+        var data = button.dataset;
+        var companyOptions = @Html.Raw(JsonConvert.SerializeObject(Model.FilterDto.Companies));
+        var categoryOptions = @Html.Raw(JsonConvert.SerializeObject(Model.FilterDto.Categories));
+        console.log(data);
+        firstModal = $.dialog({
+        title: 'Ürün Düzenle',
+        content: `
+        <form method="post" action="@Url.Action("EditProduct", "ProductAdmin")">
+
+            <div class="form-group">
+                <input type="text" id="ID" name="ID" class="form-control" value="${data.productid}" required hidden />
+
+            </div>
+
+            <div class="form-group">
+                <label for="Name">Ürün Adı</label>
+                <input type="text" id="Name" name="Name" class="form-control" value="${data.productname}" required />
+            </div>
+
+            <div class="form-group">
+                <label for="Material">Malzeme</label>
+                <input type="text" id="Material" name="Material" class="form-control" value="${data.productmaterial}" required />
+            </div>
+
+            <div class="form-group">
+                <label for="Price">Fiyat</label>
+                <input type="number" id="Price" name="Price" class="form-control" step="0.01" value="${data.productprice.replace(",", "." )}" required />
+            </div>
+
+            <div class="form-group">
+                <label for="Piece">Adet : </label>
+                <input type="number" id="Piece" name="Piece" class="form-control" step="0.01" value="${data.productpiece.replace(",", "." )}" required />
+            </div>
+
+            <div class="form-group">
+                <label for="Status">Durum :</label>
+                <select id="Status" name="Status" class="form-control" data="${data.productstatus}" required>
+                    <option value="1" ${data.productstatus == '1' ? 'selected' : '' }>SATIŞTA</option>
+                    <option value="2" ${data.productstatus == '2' ? 'selected' : '' }>KALDIRILDI</option>
+                    <option value="3" ${data.productstatus == '3' ? 'selected' : '' }>ONAY BEKLİYOR</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="Description">Açıklama :</label>
+                <textarea id="Description" name="Description" class="form-control" rows="3">${data.productdescription}</textarea>
+            </div>
+
+            <div class="form-group">
+                <label for="CategoryName">Kategori :</label>
+                <select id="CategoryName" name="CategoryName" class="form-control">
+                    ${categoryOptions.map(category => `
+                    <option value="${category}" } ${data.productcategory == category ? 'selected' : '' }>${category}</option>`).join('')}
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="CompanyName">Firma :</label>
+                <select id="CompanyName" name="CompanyName" class="form-control">
+                    ${companyOptions.map(company => `
+                    <option value="${company}" ${company == data.productcompany ? 'selected' : '' }>${company}</option>`).join('')}
+                </select>
+            </div>
+
+            <div class="form-group">
+                <input type="submit" value="Düzenle" class="btn btn-primary w-100" />
+            </div>
+
+        </form>
+        `
+        });
+        }
 
     function openYeniUrunModal() {
-    $.dialog({
-    title: 'Ürün Oluştur',
-    content: `
+        firstModal = $.dialog({
+        title: 'Ürün Oluştur',
+        content: `
+        <form method="post" action="@Url.Action("AddProduct", "ProductAdmin")">
+            <div class="form-group">
+                <label for="Name">Ürün Adı</label>
+                <input type="text" id="Name" name="Name" class="form-control" required />
+            </div>
 
-    <form method="post" action="@Url.Action("AddProduct", "ProductAdmin")">
-        <div class="form-group">
-            <label for="Name">Ürün Adı</label>
-            <input type="text" id="Name" name="Name" class="form-control" required />
-        </div>
+            <div class="form-group">
+                <label for="Material">Malzeme</label>
+                <input type="text" id="Material" name="Material" class="form-control" required />
+            </div>
 
-        <div class="form-group">
-            <label for="Material">Malzeme</label>
-            <input type="text" id="Material" name="Material" class="form-control" required />
-        </div>
+            <div class="form-group">
+                <label for="Price">Fiyat</label>
+                <input type="number" id="Price" name="Price" class="form-control" step="0.01" required />
+            </div>
 
-        <div class="form-group">
-            <label for="Price">Fiyat</label>
-            <input type="number" id="Price" name="Price" class="form-control" step="0.01" required />
-        </div>
+            <div class="form-group">
+                <label for="Piece">Adet : </label>
+                <input type="number" id="Piece" name="Piece" class="form-control" step="0.01" required />
+            </div>
 
-        <div class="form-group">
-            <label for="Piece">Adet : </label>
-            <input type="number" id="Piece" name="Piece" class="form-control" step="0.01" required />
-        </div>
+            <div class="form-group">
+                <label for="Status">Durum :</label>
+                <select id="Status" name="Status" class="form-control" required>
+                    <option value="1">SATIŞTA</option>
+                    <option value="2">KALDIRILDI</option>
+                    <option value="3">ONAY BEKLİYOR</option>
+                </select>
+            </div>
 
-        <div class="form-group">
-            <label for="Status">Durum :</label>
-            <select id="Status" name="Status" class="form-control" required>
-                <option value="1">SATIŞTA</option>
-                <option value="2">KALDIRILDI</option>
-                <option value="3">ONAY BEKLİYOR</option>
-            </select>
-        </div>
+            <div class="form-group">
+                <label for="Description">Açıklama :</label>
+                <textarea id="Description" name="Description" class="form-control" rows="3"></textarea>
+            </div>
 
-        <div class="form-group">
-            <label for="Description">Açıklama :</label>
-            <textarea id="Description" name="Description" class="form-control" rows="3"></textarea>
-        </div>
+            <div class="form-group">
+                <label for="CategoryName">Kategori :</label>
+                <select id="CategoryName" name="CategoryName" class="form-control" required>
+                    @foreach (var category in Model.FilterDto.Categories)
+                    {
+                        <option value="@category">@category</option>
+                    }
+                </select>
+            </div>
 
-        <div class="form-group">
-            <label for="CategoryName">Kategori :</label>
-            <select id="CategoryName" name="CategoryName" class="form-control" required>
-                @foreach (var category in Model.filter.Categories)
-                {
-                    <option value="@category">@category</option>
-                }
-            </select>
-        </div>
+            <div class="form-group">
+                <label for="CompanyName">Firma :</label>
+                <select id="CompanyName" name="CompanyName" class="form-control" required>
+                    @foreach (var company in Model.FilterDto.Companies)
+                    {
+                        <option value="@company">@company</option>
+                    }
+                </select>
+            </div>
 
-        <div class="form-group">
-            <label for="CompanyName">Firma :</label>
-            <select id="CompanyName" name="CompanyName" class="form-control" required>
-                @foreach (var company in Model.filter.Companies)
-                {
-                    <option value="@company">@company</option>
-                }
-            </select>
-        </div>
+            <div class="form-group">
+                <input type="submit" value="Oluştur" class="btn btn-primary w-100" />
+            </div>
 
-        <div class="form-group">
-            <input type="submit" value="Oluştur" class="btn btn-primary w-100" />
-        </div>
-
-    </form>
+        </form>
 
     `
-    //buttons: {
-    //    kaydet: {
-    //        text: 'Kaydet',
-    //        btnClass: 'btn-blue',
-    //        keys: ['enter'],
-    //        action: function () {
-    //            $.alert('Kaydedildi');
-    //        }
-    //    },
-    //    ipral: {
-    //        text: 'İptal',
-    //        btnClass: 'btn-red',
-    //        keys: ['esc'],
-    //        action: function () {
-    //            $.alert('İptal edildi');
-    //        }
-    //    },
-    //}
     });
 
     }
+
+
+
+    //DEĞİŞECEK
+    function DEGISECEKopenYeniUrunModal() {
+        firstModal = $.dialog({
+            title: 'Ürün Oluştur',
+            content: `
+                <form method="post" action="@Url.Action("AddProduct", "ProductAdmin")">
+                    <div class="form-group">
+                        @Html.LabelFor(model => model.FilterDto.Name, "Ürün Adı")
+                        @Html.TextBoxFor(model => model.FilterDto.Name, new { @class = "form-control", required = "required" })
+                    </div>
+
+                    <div class="form-group">
+                        @Html.LabelFor(model => model.FilterDto.Material, "Malzeme")
+                        @Html.TextBoxFor(model => model.FilterDto.Material, new { @class = "form-control", required = "required" })
+                    </div>
+
+                    <div class="form-group">
+                        @Html.LabelFor(model => model.FilterDto.Price, "Fiyat")
+                        @Html.TextBoxFor(model => model.FilterDto.Price, new { @class = "form-control", type = "number", step = "0.01", required = "required" })
+                    </div>
+
+                    <div class="form-group">
+                        @Html.LabelFor(model => model.FilterDto.Piece, "Adet")
+                        @Html.TextBoxFor(model => model.FilterDto.Piece, new { @class = "form-control", type = "number", step = "0.01", required = "required" })
+                    </div>
+
+                    <div class="form-group">
+                        @Html.LabelFor(model => model.FilterDto.Status, "Durum")
+                        @Html.DropDownListFor(model => model.FilterDto.Status, new List<SelectListItem>
+                        {
+                            new SelectListItem { Text = "SATIŞTA", Value = "1" },
+                            new SelectListItem { Text = "KALDIRILDI", Value = "2" },
+                            new SelectListItem { Text = "ONAY BEKLİYOR", Value = "3" }
+                        }, "Seçiniz", new { @class = "form-control", required = "required" })
+                    </div>
+
+                    <div class="form-group">
+                        @Html.LabelFor(model => model.FilterDto.Description, "Açıklama")
+                        @Html.TextAreaFor(model => model.FilterDto.Description, new { @class = "form-control", rows = "3" })
+                    </div>
+
+                    <div class="form-group">
+                        @Html.LabelFor(model => model.FilterDto.CategoryName, "Kategori")
+                        @Html.DropDownListFor(model => model.FilterDto.CategoryName, new SelectList(Model.FilterDto.Categories), "Seçiniz", new { @class = "form-control", required = "required" })
+                    </div>
+
+                    <div class="form-group">
+                        @Html.LabelFor(model => model.FilterDto.CompanyName, "Firma")
+                        @Html.DropDownListFor(model => model.FilterDto.CompanyName, new SelectList(Model.FilterDto.Companies), "Seçiniz", new { @class = "form-control", required = "required" })
+                    </div>
+
+                    <div class="form-group">
+                        <input type="submit" value="Oluştur" class="btn btn-primary w-100" />
+                    </div>
+                </form>
+            `
+        });
+    }
+
+
+    $(document).on('click', '.open-delete-modal', function () {
+        openDeleteUrunModal(this);
+    });
+
+    $(document).on('click', '.open-approve-modal', function () {
+        openApproveUrunModal(this);
+    });
+
+    $(document).on('click', '.open-edit-modal', function () {
+        openEditUrunModal(this);
+    });
+
+    $(document).on('click', '#yeniUrunButton', function () {
+        openYeniUrunModal();
+    });
+
+    $(document).on('submit', 'form', function (e) {
+        e.preventDefault();
+        var form = $(this);
+
+        $.ajax({
+            url: form.attr('action'),
+            type: form.attr('method'),
+            data: form.serialize(),
+            success: function (response) {
+                var message = response;
+                mesajDialog = $.dialog({
+                    title: 'İşlem Sonucu',
+                    content: message,
+                    closeButton: false
+                });
+                setTimeout(function () {
+                    mesajDialog.close();
+                    if (firstModal) {
+                        firstModal.close();
+                    }
+                    takeProductData();
+                }, 1500);
+            },
+            error: function (error) {
+                alert("Başarısız");
+            }
+        });
+    });
+
+
 </script>
 
 

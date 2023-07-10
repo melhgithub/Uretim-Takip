@@ -1,0 +1,174 @@
+﻿@using EntityLayer.Concrete
+@using Uretim_Takip.Dtos
+@using System.ComponentModel
+@using Newtonsoft.Json
+@model (List<Customer> customers, CustomerFilterDto filter)
+@{
+    ViewData["Title"] = "Index";
+    Layout = "~/Views/Shared/AdminLayout.cshtml";
+}
+
+<h1>Müşteri Listesi</h1>
+
+<button class="btn btn-primary" onclick="openYeniMusteriModal()">Yeni Müşteri</button>
+<br />
+
+@if (TempData["Message"] != null)
+{
+    <div class="alert alert-info alert-dismissible">
+        <button type="button" class="close" data-dismiss="alert" aria-hidden="true">×</button>
+        <h5><i class="icon fas fa-info"></i> Bilgilendirme</h5>
+        @TempData["Message"]
+    </div>
+}
+
+<form id="filterForm" method="get" action="@Url.Action("Index", "CompanyAdmin")">
+    <div class="card">
+        <div class="card-header">
+            <h3 class="card-title">
+                <i class="fas fa-filter"></i>
+                Filtrele
+            </h3>
+        </div>
+        <div class="card-body">
+            <div class="row">
+
+                <div class="col-sm-3">
+                    <dt>Müşteri Adı:</dt>
+                    <input type="text" class="form-control" name="name" placeholder="Adı" value="@Model.filter.Name">
+                </div>
+
+                <div class="col-sm-3">
+                    <dt>Müşteri Soyadı:</dt>
+                    <input type="text" class="form-control" name="lastname" placeholder="Soyadı" value="@Model.filter.LastName">
+                </div>
+
+                <div class="col-sm-3">
+                    <dt>Mail:</dt>
+                    <input type="text" class="form-control" name="mail" placeholder="Mail" value="@Model.filter.Mail">
+                </div>
+                <div class="col-sm-3">
+                    <dt>Telefon Numarası:</dt>
+                    <input type="number" class="form-control" name="phonenumber" placeholder="Tel.No." value="@Model.filter.PhoneNumber">
+                </div>
+                <div class="col-sm-3">
+                    <dt>Açıklama:</dt>
+                    <input type="text" class="form-control" name="description" placeholder="Açıklama" value="@Model.filter.Description">
+                </div>
+
+                <div class="col-sm-2">
+                    <dt>Durum:</dt>
+                    <select name="Status" class="form-control" data="@Enum.GetName(typeof(CustomerStatuses), Model.filter.Status)">
+                        @foreach (var enumValue in Enum.GetValues(typeof(CustomerStatuses)))
+                        {
+                            string description = ((DescriptionAttribute)typeof(CustomerStatuses)
+                                .GetMember(enumValue.ToString())[0]
+                                .GetCustomAttributes(typeof(DescriptionAttribute), false)
+                                .FirstOrDefault())?.Description ?? enumValue.ToString();
+
+                            <option value="@enumValue" selected="@((CustomerStatuses)enumValue == Model.filter.Status)">@description</option>
+                        }
+                    </select>
+                </div>
+
+                <div class="col-sm-12">
+                    <button type="submit" class="btn btn-primary w-100">Filtrele</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</form>
+
+<div class="card">
+    <div class="card-header">
+        <h3 class="card-title">
+            <i class="fas fa-cubes"></i>
+            Firmalar
+        </h3>
+    </div>
+
+
+    <div class="card-body">
+
+        <table id="companyTable" class="table">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Adı</th>
+                    <th>Soyadı</th>
+                    <th>Mail</th>
+                    <th>Telefon No</th>
+                    <th>Durum</th>
+                    <th>Açıklama</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                @await Html.PartialAsync("_CustomerTable")
+
+            </tbody>
+        </table>
+
+    </div>
+
+</div>
+
+<script>
+
+
+
+    function openYeniMusteriModal() {
+        $.dialog({
+            title: 'Yeni Müşteri',
+            content: `
+
+<form method="post" action="@Url.Action("AddCustomer", "CustomerAdmin")">
+    <div class="form-group">
+        <label for="Name">Adı:</label>
+        <input type="text" id="Name" name="Name" class="form-control" required />
+    </div>
+
+    <div class="form-group">
+        <label for="Name">Soyadı:</label>
+        <input type="text" id="Lastname" name="Lastname" class="form-control" required />
+    </div>
+
+    <div class="form-group">
+        <label for="Mail">Mail:</label>
+        <input type="mail" id="Mail" name="Mail" class="form-control" required />
+    </div>
+
+    <div class="form-group">
+        <label for="PhoneNumber">Telefon No:</label>
+        <input type="number" id="PhoneNumber" name="PhoneNumber" class="form-control" step="0.01" required />
+    </div>
+
+    <div class="form-group">
+        <label for="Description">Açıklama :</label>
+        <textarea id="Description" name="Description" class="form-control" rows="3"> </textarea>
+    </div>
+
+    <div class="form-group">
+        <label for="Password">Şifre: </label>
+        <input type="text" id="Password" name="Password" class="form-control" step="0.01" required />
+    </div>
+
+    <div class="form-group">
+        <label for="Status">Durum :</label>
+        <select id="Status" name="Status" class="form-control" required>
+            <option value="1">AKTİF</option>
+            <option value="2">KALDIRILDI</option>
+        </select>
+    </div>
+
+    <div class="form-group">
+        <input type="submit" value="Oluştur" class="btn btn-primary w-100" />
+    </div>
+
+</form>
+
+`
+        });
+
+    }
+</script>

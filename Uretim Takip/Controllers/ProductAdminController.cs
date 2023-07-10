@@ -1,12 +1,12 @@
-﻿using BusinessLayer.Abstract;
-using BusinessLayer.Concrete;
-using CoreLayer.Extensions;
+﻿using CoreLayer.Extensions;
 using DataAccessLayer.Concrete;
 using DataAccessLayer.EntityFramework;
+using DataAccessLayer.ServiceConcrete;
 using EntityLayer.Concrete;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
+using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
 using System.Globalization;
@@ -21,177 +21,216 @@ namespace Uretim_Takip.Controllers
 {
     public class ProductAdminController : Controller
     {
-        Context context = new Context();
         ProductManager productManager = new ProductManager(new EFProductRepository());
         CategoryManager categoryManager = new CategoryManager(new EFCategoryRepository());
         CompanyManager companyManager = new CompanyManager(new EFCompanyRepository());
         CustomerManager customerManager = new CustomerManager(new EFCustomerRepository());
 
-        private readonly Context _context;
-
-        public ProductAdminController(Context context)
+        public IActionResult Index()
         {
-            _context = context;
+            var products = productManager.GetListWithIncludes();
+
+            var filter = new ProductFilterDto
+            {
+                Categories = categoryManager.GetCategoryNames(),
+                Companies = companyManager.GetCompanyNames()
+            };
+
+            var model = new ProductsViewModel
+            {
+                Products = products,
+                FilterDto = filter
+            };
+
+            return View(model);
         }
 
-        public IActionResult Index(ProductFilterDto filter)
+        [HttpGet]
+        public async Task<IActionResult> GetProductData()
         {
-            return View(filter);
+
+            var products = await this.productManager.GetListWithIncludesAsync();
+
+            var productData = products.Select(p => new
+            {
+                ID = p.ID,
+                Category = new { p.Category.ID, Name = p.Category.Name },
+                Company = new { p.Company.ID, Name = p.Company.Name },
+                Name = p.Name,
+                Material = p.Material,
+                Price = p.Price,
+                Piece = p.Piece,
+                Status = p.Status,
+                Description = p.Description
+            });
+
+            return Json(productData);
         }
 
-        public IActionResult GetProducts(ProductFilterDto filter)
-        {
-            var products = _context.Products
-               .Include(p => p.Category)
-               .Include(p => p.Company)
-               .AsQueryable();
 
-            filter.Categories = _context.Categories.Select(c => c.Name).ToList();
-            filter.Companies = _context.Companies.Select(c => c.Name).ToList();
-
-            return View((products.ToList(), filter));
-        }
-
-        public IActionResult Filter(ProductFilterDto filter)
-        {
-            var products = _context.Products
-               .Include(p => p.Category)
-               .Include(p => p.Company)
-               .AsQueryable();
-
-            filter.Categories = _context.Categories.Select(c => c.Name).ToList();
-            filter.Companies = _context.Companies.Select(c => c.Name).ToList();
-
-            if (!string.IsNullOrEmpty(filter.Name)) products = products.Where(p => p.Name.Contains(filter.Name));
-            if (!string.IsNullOrEmpty(filter.Material)) products = products.Where(p => p.Material.Contains(filter.Material));
-            if (filter.Price > 0) products = products.Where(p => p.Price == filter.Price);
-            if (filter.Piece > 0) products = products.Where(p => p.Piece == filter.Piece);
-            if (filter.Status > 0) products = products.Where(p => p.Status.Equals(filter.Status));
-            if (!string.IsNullOrEmpty(filter.Description)) products = products.Where(p => p.Description.Contains(filter.Description));
-            if (!string.IsNullOrEmpty(filter.CategoryName)) products = products.Where(p => p.Category.Name.Contains(filter.CategoryName));
-            if (!string.IsNullOrEmpty(filter.CompanyName)) products = products.Where(p => p.Company.Equals(_context.Companies.FirstOrDefault(x => x.Name == filter.CompanyName)));
-        
-            return Json((products.ToList(),filter));
-        }
 
         [HttpPost]
         public IActionResult AddProduct(ProductAddDto product)
         {
-            try
+            string message = "";
+
+            if (product != null)
             {
-                var productToAdd = new Product
+                try
                 {
-                    CategoryID = _context.Categories.FirstOrDefault(c => c.Name == product.CategoryName).ID,
-                    CompanyID = _context.Companies.FirstOrDefault(c => c.Name == product.CompanyName).ID,
-                    Material = product.Material,
-                    Name = product.Name,
-                    Piece = product.Piece.ToDecimal(),
-                    Price = product.Price.ToDecimal(),
-                    Status = product.Status,
-                    Description = product.Description
-                };
-                productManager.ProductAdd(productToAdd);
+                    int categoryID = categoryManager.GetCategoryIdByName(product.CategoryName);
+                    int companyID = companyManager.GetCompanyIdByName(product.CompanyName);
+                    var productToAdd = new Product
+                    {
+                        CategoryID = categoryID,
+                        CompanyID = companyID,
+                        Material = product.Material,
+                        Name = product.Name,
+                        Piece = product.Piece.ToDecimal(),
+                        Price = product.Price.ToDecimal(),
+                        Status = product.Status,
+                        Description = product.Description
+                    };
+                    productManager.ProductAdd(productToAdd);
+
+                    message = "Ürün başarıyla kaydedildi!";
+                }
+                catch (Exception)
+                {
+                    message = "Ürün eklenirken bir sorun oluştu! Lütfen bilgileri kontrol ediniz.";
+
+                    return RedirectToAction(nameof(Index));
+                }
             }
-            catch (Exception)
+            else
             {
-                TempData["Message"] = "Ürün eklenirken bir sorun oluştu! Lütfen bilgileri kontrol ediniz.";
-
-                return RedirectToAction(nameof(Index));
+                 message = "Hata oluştu!";
             }
 
-            TempData["Message"] = "Ürün başarıyla kaydedildi!";
-
-            return RedirectToAction(nameof(Index));
+            return Json(message);
         }
 
 
         [HttpPost]
         public IActionResult EditProduct(ProductEditDto product)
         {
-            try
+            string message = "";
+
+            if (product != null)
             {
-                var productToUpdate = _context.Products.FirstOrDefault(p => p.ID == product.ID);
-
-                if (productToUpdate != null)
+                try
                 {
-                    productToUpdate.ID = product.ID;
-                    productToUpdate.CategoryID = _context.Categories.FirstOrDefault(c => c.Name == product.CategoryName).ID;
-                    productToUpdate.CompanyID = _context.Companies.FirstOrDefault(c => c.Name == product.CompanyName).ID;
-                    productToUpdate.Material = product.Material;
-                    productToUpdate.Name = product.Name;
-                    productToUpdate.Piece = product.Piece.ToDecimal();
-                    productToUpdate.Price = product.Price.ToDecimal();
-                    productToUpdate.Status = product.Status;
-                    productToUpdate.Description = product.Description;
 
-                    productManager.ProductUpdate(productToUpdate);
+                    int categoryID = categoryManager.GetCategoryIdByName(product.CategoryName);
+                    int companyID = companyManager.GetCompanyIdByName(product.CompanyName);
 
-                    TempData["Message"] = "Ürün başarıyla güncellendi!";
+                    var productToUpdate = productManager.GetByID(product.ID);
+
+                    if (productToUpdate != null)
+                    {
+                        productToUpdate.ID = product.ID;
+                        productToUpdate.CategoryID = categoryID;
+                        productToUpdate.CompanyID = companyID;
+                        productToUpdate.Material = product.Material;
+                        productToUpdate.Name = product.Name;
+                        productToUpdate.Piece = product.Piece.ToDecimal();
+                        productToUpdate.Price = product.Price.ToDecimal();
+                        productToUpdate.Status = product.Status;
+                        productToUpdate.Description = product.Description;
+
+                        productManager.ProductUpdate(productToUpdate);
+
+                        message = "Ürün başarıyla güncellendi!";
+                    }
+                    else
+                    {
+                        message = "Güncellenmek istenen ürün bulunamadı!";
+                    }
                 }
-                else
+                catch (Exception)
                 {
-                    TempData["Message"] = "Güncellenmek istenen ürün bulunamadı!";
+                    message = "Ürün güncellenirken bir sorun oluştu! Lütfen bilgileri kontrol ediniz.";
                 }
             }
-            catch (Exception)
+            else
             {
-                TempData["Message"] = "Ürün güncellenirken bir sorun oluştu! Lütfen bilgileri kontrol ediniz.";
+                message = "Hata oluştu!";
             }
-
-            return RedirectToAction(nameof(Index));
+            return Json(message);
         }
 
         [HttpPost]
         public IActionResult ApproveProduct(ProductApproveDto product)
         {
-            try
+            string message = "";
+
+            if (product != null)
             {
-                var productToApprove = _context.Products.FirstOrDefault(p => p.ID == product.ID);
-
-                if (productToApprove != null)
+                try
                 {
-                    productToApprove.Status = (ProductStatuses)1;
-                    productManager.ProductUpdate(productToApprove);
+                    var productToApprove = productManager.GetByID(product.ID);
 
-                    TempData["Message"] = "Ürün başarıyla onaylandı!";
+                    if (productToApprove != null)
+                    {
+                        productToApprove.Status = (ProductStatuses)1;
+                        productManager.ProductUpdate(productToApprove);
+
+                        message = "Ürün başarıyla onaylandı!";
+                    }
+                    else
+                    {
+                        message = "Onaylanmak istenen ürün bulunamadı!";
+                    }
                 }
-                else
+                catch (Exception)
                 {
-                    TempData["Message"] = "Onaylanmak istenen ürün bulunamadı!";
+                    message = "Ürün onaylanırken bir sorun oluştu! Lütfen bilgileri kontrol ediniz.";
                 }
             }
-            catch (Exception)
+            else
             {
-                TempData["Message"] = "Ürün onaylanırken bir sorun oluştu! Lütfen bilgileri kontrol ediniz.";
+                message = "Hata oluştu!";
             }
 
-            return RedirectToAction(nameof(Index));
+            return Json(message);
         }
+
+
         [HttpPost]
         public IActionResult DeleteProduct(ProductDeleteDto product)
         {
-            try
+            string message = "";
+
+            if (product != null)
             {
-                var productToDelete = _context.Products.FirstOrDefault(p => p.ID == product.ID);
-
-                if (productToDelete != null)
+                try
                 {
-                    productToDelete.Status = (ProductStatuses)2;
-                    productManager.ProductUpdate(productToDelete);
+                    var productToDelete = productManager.GetByID(product.ID);
 
-                    TempData["Message"] = "Ürün başarıyla kaldırıldı!";
+                    if (productToDelete != null)
+                    {
+                        productToDelete.Status = (ProductStatuses)2;
+                        productManager.ProductUpdate(productToDelete);
+
+                        message = "Ürün başarıyla kaldırıldı!";
+                    }
+                    else
+                    {
+                        message = "Kaldırılmak istenen ürün bulunamadı!";
+                    }
                 }
-                else
+                catch (Exception)
                 {
-                    TempData["Message"] = "Kaldırılmak istenen ürün bulunamadı!";
+                    message = "Ürün kaldırılırken bir sorun oluştu! Lütfen bilgileri kontrol ediniz.";
                 }
             }
-            catch (Exception)
+            else
             {
-                TempData["Message"] = "Ürün kaldırılırken bir sorun oluştu! Lütfen bilgileri kontrol ediniz.";
+                message = "Hata oluştu!";
             }
 
-            return RedirectToAction(nameof(Index));
+
+            return Json(message);
         }
 
     }
