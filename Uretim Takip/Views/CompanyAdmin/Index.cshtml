@@ -2,7 +2,8 @@
 @using Uretim_Takip.Dtos
 @using System.ComponentModel
 @using Newtonsoft.Json
-@model (List<Company> companies, CompanyFilterDto filter)
+@model CompaniesViewModel
+
 @{
     ViewData["Title"] = "Index";
     Layout = "~/Views/Shared/AdminLayout.cshtml";
@@ -10,68 +11,8 @@
 
 <h1>Firma Listesi</h1>
 
-<button class="btn btn-primary" onclick="openYeniFirmaModal()">Yeni Firma</button>
-<br />
+@await Html.PartialAsync("_ScriptImports")
 
-@if (TempData["Message"] != null)
-{
-    <div class="alert alert-info alert-dismissible">
-        <button type="button" class="close" data-dismiss="alert" aria-hidden="true">×</button>
-        <h5><i class="icon fas fa-info"></i> Bilgilendirme</h5>
-        @TempData["Message"]
-    </div>
-}
-
-<form id="filterForm" method="get" action="@Url.Action("Index", "CompanyAdmin")">
-    <div class="card">
-        <div class="card-header">
-            <h3 class="card-title">
-                <i class="fas fa-filter"></i>
-                Filtrele
-            </h3>
-        </div>
-        <div class="card-body">
-            <div class="row">
-
-                <div class="col-sm-3">
-                    <dt>Firma Adı:</dt>
-                    <input type="text" class="form-control" name="name" placeholder="Firma Adı" value="@Model.filter.Name">
-                </div>
-                <div class="col-sm-3">
-                    <dt>Mail:</dt>
-                    <input type="text" class="form-control" name="mail" placeholder="Mail" value="@Model.filter.Mail">
-                </div>
-                <div class="col-sm-3">
-                    <dt>Telefon Numarası:</dt>
-                    <input type="number" class="form-control" name="phonenumber" placeholder="Tel.No." value="@Model.filter.PhoneNumber">
-                </div>
-                <div class="col-sm-3">
-                    <dt>Açıklama:</dt>
-                    <input type="text" class="form-control" name="description" placeholder="Açıklama" value="@Model.filter.Description">
-                </div>
-
-                <div class="col-sm-2">
-                    <dt>Durum:</dt>
-                    <select name="Status" class="form-control" data="@Enum.GetName(typeof(CompanyStatuses), Model.filter.Status)">
-                        @foreach (var enumValue in Enum.GetValues(typeof(CompanyStatuses)))
-                        {
-                            string description = ((DescriptionAttribute)typeof(CompanyStatuses)
-                                .GetMember(enumValue.ToString())[0]
-                                .GetCustomAttributes(typeof(DescriptionAttribute), false)
-                                .FirstOrDefault())?.Description ?? enumValue.ToString();
-
-                            <option value="@enumValue" selected="@((CompanyStatuses)enumValue == Model.filter.Status)">@description</option>
-                        }
-                    </select>
-                </div>
-
-                <div class="col-sm-12">
-                    <button type="submit" class="btn btn-primary w-100">Filtrele</button>
-                </div>
-            </div>
-        </div>
-    </div>
-</form>
 
 <div class="card">
     <div class="card-header">
@@ -82,25 +23,14 @@
     </div>
 
 
+
     <div class="card-body">
+        <button class="btn btn-primary" onclick="openYeniFirmaModal()">Yeni Firma</button>
+        <br />
 
-        <table id="companyTable" class="table">
-            <thead>
-                <tr>
-                    <th>ID</th>
-                    <th>Firma Adı</th>
-                    <th>Mail</th>
-                    <th>Telefon No</th>
-                    <th>Durum</th>
-                    <th>Açıklama</th>
-                    <th></th>
-                </tr>
-            </thead>
-            <tbody>
-                @await Html.PartialAsync("_CompanyTable")
-
-            </tbody>
-        </table>
+        <div id="companyTable" class="table-responsive">
+            <table id="companyGrid" class="table table-bordered table-striped"></table>
+        </div>
 
     </div>
 
@@ -108,11 +38,205 @@
 
 
 <script>
-    
+    var firstModal = null;
 
+    $(document).ready(function () {
+        takeCompanyData();
+    });
+
+    function takeCompanyData() {
+        var companyGrid = $('#companyGrid');
+
+        if ($.fn.DataTable.isDataTable(companyGrid)) {
+            companyGrid.DataTable().destroy();
+            companyGrid.empty();
+        }
+
+        $.ajax({
+            url: '/CompanyAdmin/GetCompanyData',
+            type: 'GET',
+            dataType: 'json',
+            success: function (response) {
+                var data = response.$values;
+                console.log(data);
+                $('#companyGrid').DataTable({
+                    data: data,
+                    columns: [
+                        { data: 'id', title: 'ID', width: '4%' },
+                        { data: 'name', title: 'Firma Adı', width: '10%' },
+                        { data: 'phonenumber', title: 'Telefon No', width: '10%' },
+                        { data: 'mail', title: 'E-Mail', width: '10%' },
+                        {
+                            data: 'status', title: 'Durum', width: '10%',
+                            render: function (data) {
+                                switch (data) {
+                                    case 1:
+                                        return 'AKTİF';
+                                    case 2:
+                                        return 'KALDIRILDI';
+                                    default:
+                                        return '';
+                                }
+                            }
+                        },
+                        { data: 'description', title: 'Açıklama', width: '13%' },
+                        { data: 'password', title: 'Şifre', width: '10%' },
+                        {
+                            data: null, title: '', width: '33%',
+                            render: function (data, type, row) {
+                                return '<button class="btn btn-primary open-edit-modal" ' +
+                                    'data-companyid="' + row.id + '" ' +
+                                    'data-companyname="' + row.name + '" ' +
+                                    'data-companyphonenumber="' + row.phonenumber + '" ' +
+                                    'data-companymail="' + row.mail + '" ' +
+                                    'data-companystatus="' + row.status + '" ' +
+                                    'data-companypassword="' + row.password + '" ' +
+                                    'data-companydescription="' + row.description + '" ' +'">Düzenle</button>' +
+                                    '<button class="btn btn-success open-approve-modal" ' +
+                                    'data-companyid="' + row.id + '" ' +
+                                    'data-companystatus="' + row.status + '">Onayla</button>' +
+                                    '<button class="btn btn-warning open-delete-modal" ' +
+                                    'data-companyid="' + row.id + '" ' +
+                                    'data-companystatus="' + row.status + '">Kaldır</button>';
+                            }
+                        }
+                    ],
+                    paging: true,
+                    lengthMenu: [10, 20, 30, 40, 50],
+                    order: [[0, 'desc']],
+                    responsive: true,
+                    autoWidth: true,
+                    width: '100%'
+                });
+
+
+
+                console.log(data);
+            },
+            error: function (error) {
+                console.log(error);
+            }
+        });
+    }
+
+    function openApproveFirmaModal(button) {
+    var data = button.dataset;
+        firstModal = $.dialog({
+        title: 'Firma Onayla',
+         content: `
+            <!-- ${JSON.stringify(data)} -->
+            <form method="post" action="@Url.Action("ApproveCompany", "CompanyAdmin")">
+
+                <div class="form-group">
+                    <label>Onaylamak istiyor musunuz ?</label>
+                </div>
+
+                <div class="form-group">
+                    <input type="text" id="ID" name="ID" class="form-control" value="${data.companyid}" required hidden />
+                </div>
+
+                <div class="form-group">
+                    <input type="text" id="Status" name="Status" class="form-control" value="${data.companystatus}" required hidden />
+                </div>
+
+                <div class="form-group">
+                    <input type="submit" value="Onayla" class="btn btn-primary w-100" />
+                </div>
+
+            </form>
+        `
+    });
+    }
+
+    function openDeleteFirmaModal(button) {
+    var data = button.dataset;
+        firstModal = $.dialog({
+        title: 'Firma Sil',
+         content: `
+            <!-- ${JSON.stringify(data)} -->
+            <form method="post" action="@Url.Action("DeleteCompany", "CompanyAdmin")">
+
+                <div class="form-group">
+                    <label>Kaldırmak istiyor musunuz ?</label>
+                </div>
+
+                <div class="form-group">
+                    <input type="text" id="ID" name="ID" class="form-control" value="${data.companyid}" required hidden />
+
+                </div>
+
+                <div class="form-group">
+                    <input type="text" id="Status" name="Status" class="form-control" value="${data.companystatus}" required hidden />
+                </div>
+
+                <div class="form-group">
+                    <input type="submit" value="Kaldır" class="btn btn-warning w-100" />
+                </div>
+
+            </form>
+        `
+    });
+    }
+
+    function openEditFirmaModal(button) {
+    var data = button.dataset;
+        firstModal = $.dialog({
+        title: 'Firma Düzenle',
+         content: `
+            <!-- ${JSON.stringify(data)} -->
+            <form method="post" action="@Url.Action("EditCompany", "CompanyAdmin")">
+
+                <div class="form-group">
+                    <input type="text" id="ID" name="ID" class="form-control" value="${data.companyid}" required hidden />
+
+                </div>
+
+                <div class="form-group">
+                    <label for="Name">Firma Adı:</label>
+                    <input type="text" id="Name" name="Name" class="form-control" value="${data.companyname}" required />
+                </div>
+
+                <div class="form-group">
+                    <label for="Material">Mail:</label>
+                    <input type="text" id="Mail" name="Mail" class="form-control" value="${data.companymail}" required />
+                </div>
+
+
+                <div class="form-group">
+                    <label for="Description">Açıklama :</label>
+                    <textarea id="Description" name="Description" class="form-control" rows="3">${data.companydescription}</textarea>
+                </div>
+
+
+                <div class="form-group">
+                    <label for="Material">Telefon No:</label>
+                    <input type="text" id="PhoneNumber" name="PhoneNumber" class="form-control" value="${data.companyphonenumber}" required />
+                </div>
+
+                <div class="form-group">
+                    <label for="Material">Şifre:</label>
+                    <input type="text" id="Password" name="Password" class="form-control" value="${data.companypassword}" required />
+                </div>
+
+                <div class="form-group">
+                    <label for="Status">Durum :</label>
+                    <select id="Status" name="Status" class="form-control" data="${data.companystatus}" required>
+                        <option value="1" ${data.companystatus == '1' ? 'selected' : ''}>AKTİF</option>
+                        <option value="2" ${data.companystatus == '2' ? 'selected' : ''}>KALDIRILDI</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <input type="submit" value="Düzenle" class="btn btn-primary w-100" />
+                </div>
+
+            </form>
+        `
+    });
+    }
 
     function openYeniFirmaModal() {
-        $.dialog({
+        firstModal = $.dialog({
             title: 'Yeni Firma',
             content: `
 
@@ -160,6 +284,55 @@
         });
 
     }
-    </script>
+
+
+
+    $(document).on('click', '.open-delete-modal', function () {
+        openDeleteFirmaModal(this);
+    });
+
+    $(document).on('click', '.open-approve-modal', function () {
+        openApproveFirmaModal(this);
+    });
+
+    $(document).on('click', '.open-edit-modal', function () {
+        openEditFirmaModal(this);
+    });
+
+    $(document).on('click', '#yeniUrunButton', function () {
+        openYeniFirmaModal();
+    });
+
+    $(document).on('submit', 'form', function (e) {
+        e.preventDefault();
+        var form = $(this);
+
+        $.ajax({
+            url: form.attr('action'),
+            type: form.attr('method'),
+            data: form.serialize(),
+            success: function (response) {
+                var message = response;
+                mesajDialog = $.dialog({
+                    title: 'İşlem Sonucu',
+                    content: message,
+                    closeButton: false
+                });
+                setTimeout(function () {
+                    mesajDialog.close();
+                    if (firstModal) {
+                        firstModal.close();
+                    }
+                    takeCompanyData();
+                }, 1500);
+            },
+            error: function (error) {
+                alert("Başarısız");
+            }
+        });
+    });
+
+
+</script>
 
 

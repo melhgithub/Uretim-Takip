@@ -11,6 +11,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Uretim_Takip.Dtos;
+using Uretim_Takip.Models;
 
 namespace Uretim_Takip.Controllers
 {
@@ -26,199 +27,208 @@ namespace Uretim_Takip.Controllers
         OrderManager orderManager = new OrderManager(new EFOrderRepository());
         ProductionManager productionManager = new ProductionManager(new EFProductionRepository());
 
-        Context context = new Context();
-        private Context _context;
 
-        public OfferAdminController(Context context)
+        public IActionResult Index()
         {
-            _context = context;
+            var offers = offerManager.GetListWithIncludes();
+
+            var filter = new OfferFilterDto
+            {
+                Customers = customerManager.GetCustomerNames(),
+                Companies = companyManager.GetCompanyNames()
+            };
+
+            var model = new OffersViewModel
+            {
+                Offers = offers,
+                FilterDto = filter
+            };
+
+            return View(model);
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> GetOfferData()
+        {
+
+            var offers = await this.offerManager.GetListWithIncludesAsync();
+
+            var offerData = offers.Select(p => new
+            {
+                ID = p.ID,
+                Customer = new { p.Customer.ID, Name = p.Customer.Name },
+                Company = new { p.Company.ID, Name = p.Company.Name },
+                Price = p.Price,
+                productpiece = p.ProductPiece,
+                Status = p.Status
+            });
+
+            return Json(offerData);
         }
 
         [HttpGet]
         public async Task<IActionResult> GetProductsByCompany(string companyName)
         {
-            var products = await _context.Products
-                .Where(p => p.Company.Name == companyName)
-                .Select(p => new { ID = p.ID, Name = p.Name })
-                .ToListAsync();
+            var companyID = companyManager.GetCompanyIdByName(companyName);
+            var products = await productManager.GetListByCompanyID(companyID);
 
-            return Json(products);
-        }
+            var productData = products.Select(p => new
+            {
+                ID = p.ID,
+                Name = p.Name
+            });
 
-        [HttpGet]
-        public IActionResult GetOfferDetails(int offerId)
-        {
-            var offerDetails = _context.OfferDetails
-                 .Where(od => od.OfferID == offerId)
-                 .ToArray();
-
-            var json = JsonConvert.SerializeObject(offerDetails);
-
-            return Json(json);
-        }
-
-        public IActionResult Index(OfferFilterDto filter)
-        {
-            var offers = _context.Offers
-               .Include(p => p.Customer)
-               .Include(p => p.Company)
-               .AsQueryable();
-
-            filter.Customers = _context.Customers.Select(c => c.Name).ToList();
-            filter.Companies = _context.Companies.Select(c => c.Name).ToList();
-            filter.Products = _context.Products.Select(c => c.Name).ToList();
-
-            if (filter.Price > 0) offers = offers.Where(p => p.Price == filter.Price);
-            if (filter.ProductPiece > 0) offers = offers.Where(p => p.ProductPiece == filter.ProductPiece);
-            if (filter.Status > 0) offers = offers.Where(p => p.Status.Equals(filter.Status));
-            if (!string.IsNullOrEmpty(filter.CustomerName)) offers = offers.Where(p => p.Customer.Equals(_context.Customers.FirstOrDefault(x => x.Name == filter.CustomerName)));
-            if (!string.IsNullOrEmpty(filter.CompanyName)) offers = offers.Where(p => p.Company.Equals(_context.Companies.FirstOrDefault(x => x.Name == filter.CompanyName)));
-
-            return View((offers.ToList(), filter));
+            return Json(productData);
         }
 
         [HttpPost]
-        public IActionResult AddOffer(Dictionary<string, string> form, OfferAddDto offer, int Adet)
+        public IActionResult AddOffer(Dictionary<string, string> form, OfferAddDto offer)
         {
-            try
+            if (int.TryParse(form["adet"], out int adet) && adet != 0)
             {
-                var offerToAdd = new Offer
+                try
                 {
-                    CompanyID = _context.Companies.FirstOrDefault(c => c.Name == offer.CompanyName).ID,
-                    CustomerID = _context.Customers.FirstOrDefault(c => c.Name == offer.CustomerName).ID,
-                    Status = (OfferStatuses)5,
-                    Price = offer.Price.ToDecimal(),
-                    ProductPiece = Adet
-                };
-                offerManager.OfferAdd(offerToAdd);
-
-                for (int i = 1; i <= Adet; i++)
-                {
-                    var productIDString = form[$"Product{i}"];
-                    var productPriceString = form[$"ProductPrice{i}"];
-                    var productPieceString = form[$"ProductPiece{i}"];
-
-                    var productID = int.Parse(productIDString);
-                    var productPrice = decimal.Parse(productPriceString);
-                    var productPiece = int.Parse(productPieceString);
-
-                    var offerDetailToAdd = new OfferDetail
+                    var offerToAdd = new Offer
                     {
-                        OfferID = offerToAdd.ID,
-                        ProductID = productID,
-                        Price = productPrice,
-                        Piece = productPiece
+                        CompanyID = companyManager.GetCompanyIdByName(offer.CompanyName),
+                        CustomerID = customerManager.GetCustomerIdByName(offer.CustomerName),
+                        Status = (OfferStatuses)5,
+                        Price = offer.Price.ToDecimal(),
+                        ProductPiece = adet
                     };
-                    offerDetailManager.OfferDetailAdd(offerDetailToAdd);
+
+                    for (int i = 1; i <= adet; i++)
+                    {
+                        if (form[$"Product{i}"] != null && int.TryParse(form[$"Product{i}"], out int productID) &&
+                            decimal.TryParse(form[$"ProductPrice{i}"], out decimal productPrice) &&
+                            int.TryParse(form[$"ProductPiece{i}"], out int productPiece))
+                        {
+                            var offerDetailToAdd = new OfferDetail
+                            {
+                                OfferID = offerToAdd.ID,
+                                ProductID = productID,
+                                Price = productPrice,
+                                Piece = productPiece
+                            };
+                            offerDetailManager.OfferDetailAdd(offerDetailToAdd);
+                        }
+                        else
+                        {
+                            return Json("Teklif eklenirken bir sorun oluştu! Lütfen bilgileri kontrol ediniz.");
+                        }
+                    }
+
+                    offerManager.OfferAdd(offerToAdd);
+                    return Json("Teklif başarıyla kaydedildi!");
                 }
-
-                TempData["Message"] = "Teklif başarıyla kaydedildi!";
-
+                catch (Exception)
+                {
+                    return Json("Teklif eklenirken bir sorun oluştu! Lütfen bilgileri kontrol ediniz.");
+                }
             }
-            catch (Exception)
+            else
             {
-                TempData["Message"] = "Teklif eklenirken bir sorun oluştu! Lütfen bilgileri kontrol ediniz.";
-
+                return Json("Hiç ürün eklemediniz!");
             }
-
-            return RedirectToAction(nameof(Index));
         }
 
+        [HttpPost]
         public IActionResult EditOffer(OfferEditDto offer)
         {
+            string message = "";
             try
             {
-                var offerToUpdate = _context.Offers.FirstOrDefault(p => p.ID == offer.ID);
+                var offerToEdit = offerManager.GetByID(offer.ID);
 
-                if (offerToUpdate != null)
+                if (offerToEdit != null)
                 {
-                    offerToUpdate.ID = offer.ID;
-                    offerToUpdate.CustomerID = _context.Customers.FirstOrDefault(c => c.Name == offer.CustomerName).ID;
-                    offerToUpdate.CompanyID = _context.Companies.FirstOrDefault(c => c.Name == offer.CompanyName).ID;
-                    offerToUpdate.Price = offer.Price.ToDecimal();
-                    offerToUpdate.ProductPiece = offer.ProductPiece;
-                    offerToUpdate.Status = offer.Status;
+                    offerToEdit.CustomerID = customerManager.GetCustomerIdByName(offer.CustomerName);
+                    offerToEdit.CompanyID = companyManager.GetCompanyIdByName(offer.CompanyName);
+                    offerToEdit.Price = offer.Price.ToDecimal();
+                    offerToEdit.ProductPiece = offer.ProductPiece;
+                    offerToEdit.Status = (OfferStatuses)offer.Status;
 
-                    offerManager.OfferUpdate(offerToUpdate);
+                    offerManager.OfferUpdate(offerToEdit);
 
-                    TempData["Message"] = "Teklif başarıyla güncellendi!";
+                    message = "Teklif başarıyla güncellendi!";
                 }
                 else
                 {
-                    TempData["Message"] = "Güncellenmek istenen teklif bulunamadı!";
+                    message = "Güncellenmek istenen teklif bulunamadı!";
                 }
             }
             catch (Exception)
             {
-                TempData["Message"] = "Teklif güncellenirken bir sorun oluştu! Lütfen bilgileri kontrol ediniz.";
+                message = "Teklif güncellenirken bir sorun oluştu! Lütfen bilgileri kontrol ediniz.";
             }
 
-            return RedirectToAction(nameof(Index));
+            return Json(message);
         }
 
 
         [HttpPost]
         public IActionResult ApproveOffer(OfferApproveDto offer)
         {
+            string message = "";
             try
             {
-                var offerToApprove = _context.Offers.FirstOrDefault(p => p.ID == offer.ID);
+                var offerToApprove = offerManager.GetByID(offer.ID);
 
                 if (offerToApprove != null)
                 {
                     offerToApprove.Status = (OfferStatuses)1;
                     offerManager.OfferUpdate(offerToApprove);
 
-                    TempData["Message"] = "Teklif başarıyla onaylandı!";
+                    message ="Teklif başarıyla onaylandı!";
                 }
                 else
                 {
-                    TempData["Message"] = "Onaylanmak istenen teklif bulunamadı!";
+                    message ="Onaylanmak istenen teklif bulunamadı!";
                 }
             }
             catch (Exception)
             {
-                TempData["Message"] = "Teklif onaylanırken bir sorun oluştu! Lütfen bilgileri kontrol ediniz.";
+                message ="Teklif onaylanırken bir sorun oluştu! Lütfen bilgileri kontrol ediniz.";
             }
 
-            return RedirectToAction(nameof(Index));
+            return Json(message);
         }
-
 
         [HttpPost]
         public IActionResult DeleteOffer(OfferDeleteDto offer)
         {
+            string message = "";
             try
             {
-                var offerToDelete = _context.Offers.FirstOrDefault(p => p.ID == offer.ID);
+                var offerToDelete = offerManager.GetByID(offer.ID);
 
                 if (offerToDelete != null)
                 {
                     offerToDelete.Status = (OfferStatuses)3;
                     offerManager.OfferUpdate(offerToDelete);
 
-                    TempData["Message"] = "Teklif başarıyla reddedildi!";
+                    message ="Teklif başarıyla reddedildi!";
                 }
                 else
                 {
-                    TempData["Message"] = "Reddedilmek istenen teklif bulunamadı!";
+                    message ="Reddedilmek istenen teklif bulunamadı!";
                 }
             }
             catch (Exception)
             {
-                TempData["Message"] = "Teklif reddedilirken bir sorun oluştu! Lütfen bilgileri kontrol ediniz.";
+                message ="Teklif reddedilirken bir sorun oluştu! Lütfen bilgileri kontrol ediniz.";
             }
 
-            return RedirectToAction(nameof(Index));
+            return Json(message);
         }
-
 
         [HttpPost]
         public IActionResult GoToOrder(OfferToOrderDto offer)
         {
+            string message = "";
             try
             {
-                var offerToOrder = _context.Offers.FirstOrDefault(p => p.ID == offer.ID);
+                var offerToOrder = offerManager.GetByID(offer.ID);
 
                 if (offerToOrder != null)
                 {
@@ -237,19 +247,19 @@ namespace Uretim_Takip.Controllers
                     };
                     orderManager.OrderAdd(orderToAdd);
 
-                    TempData["Message"] = "Teklif başarıyla siparişe geçti!";
+                    message ="Teklif başarıyla siparişe geçti!";
                 }
                 else
                 {
-                    TempData["Message"] = "Siparişe geçecek teklif bulunamadı!";
+                    message ="Siparişe geçecek teklif bulunamadı!";
                 }
             }
             catch (Exception)
             {
-                TempData["Message"] = "Teklif siparişe geçerken bir sorun oluştu! Lütfen bilgileri kontrol ediniz.";
+                message ="Teklif siparişe geçerken bir sorun oluştu! Lütfen bilgileri kontrol ediniz.";
             }
 
-            return RedirectToAction(nameof(Index));
+            return Json(message);
         }
     }
 }

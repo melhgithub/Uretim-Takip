@@ -42,5 +42,9 @@ namespace DataAccessLayer.ServiceConcrete
         {
             return _companyNoteDal.GetListAll();
         }
+        public async Task<List<CompanyNote>> GetListAsync()
+        {
+            return await _companyNoteDal.GetListAsync();
+        }
     }
 }

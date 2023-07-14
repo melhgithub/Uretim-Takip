@@ -10,7 +10,7 @@ namespace DataAccessLayer.Abstract
     public interface IProductDal : IGenericDal<Product>
     {
         List<Product> GetListWithIncludes();
-
         Task<List<Product>> GetListWithIncludesAsync();
+        Task<List<Product>> GetListByCompanyID(int companyID);
     }
 }

@@ -9,5 +9,7 @@ namespace DataAccessLayer.Abstract
 {
     public interface IOfferDal : IGenericDal<Offer>
     {
+        List<Offer> GetListWithIncludes();
+        Task<List<Offer>> GetListWithIncludesAsync();
     }
 }

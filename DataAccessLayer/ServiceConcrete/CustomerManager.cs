@@ -43,5 +43,20 @@ namespace DataAccessLayer.ServiceConcrete
         {
             return _customerDal.GetListAll();
         }
+        public async Task<List<Customer>> GetListAsync()
+        {
+            return await _customerDal.GetListAsync();
+        }
+
+        public List<string> GetCustomerNames()
+        {
+            return _customerDal.GetListAll().Select(c => c.Name).ToList();
+        }
+
+        public int GetCustomerIdByName(string customerName)
+        {
+            var customer = _customerDal.GetByName(customerName);
+            return customer != null ? customer.ID : 0;
+        }
     }
 }

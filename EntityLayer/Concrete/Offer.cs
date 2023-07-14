@@ -12,8 +12,6 @@ namespace EntityLayer.Concrete
     public enum OfferStatuses
     {
         // Status.Removed.DisplayName(); //KALDIRILDI ŞEKLİNDE KULLANILACAK
-        [Description("TÜMÜ")]
-        All = 0,
 
         [Description("Teklifte")]
         Approved = 1,

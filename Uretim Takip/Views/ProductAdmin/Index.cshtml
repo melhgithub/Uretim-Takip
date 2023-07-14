@@ -3,6 +3,7 @@
 @using System.ComponentModel
 @using Newtonsoft.Json
 @model ProductsViewModel
+
 @{
     ViewData["Title"] = "Index";
     Layout = "~/Views/Shared/AdminLayout.cshtml";
@@ -10,7 +11,6 @@
 <h1>Ürün Listesi</h1>
 
 @await Html.PartialAsync("_ScriptImports")
-<br />
 
 
 <div class="card">
@@ -26,6 +26,7 @@
 
         <div id="productTable" class="table-responsive">
             <table id="productGrid" class="table table-bordered table-striped"></table>
+            <div id="productGridPager"></div>
         </div>
 
     </div>
@@ -39,95 +40,101 @@
         takeProductData();
     });
 
-    function categoryFormatter(data, type, row) {
-        return row.category && row.category.name ? row.category.name : '';
+    function categoryFormatter(cellValue, options, rowObject) {
+        return rowObject.category && rowObject.category.name ? rowObject.category.name : '';
     }
 
-    function companyFormatter(data, type, row) {
-        return row.company && row.company.name ? row.company.name : '';
+    function companyFormatter(cellValue, options, rowObject) {
+        return rowObject.company && rowObject.company.name ? rowObject.company.name : '';
     }
+
 
     function takeProductData() {
         var productGrid = $('#productGrid');
 
-        if ($.fn.DataTable.isDataTable(productGrid)) {
-            productGrid.DataTable().destroy();
-            productGrid.empty();
-        }
+            $.ajax({
+                url: '/ProductAdmin/GetProductData',
+                type: 'GET',
+                dataType: 'json',
+                success: function (response) {
+                    var data = response.$values;
+                    console.log(data);
 
-        $.ajax({
-            url: '/ProductAdmin/GetProductData',
-            type: 'GET',
-            dataType: 'json',
-            success: function (response) {
-                var data = response.$values;
-                console.log(data);
-                $('#productGrid').DataTable({
-                    data: data,
-                    columns: [
-                        { data: 'id', title: 'ID', width: '4%' },
-                        { data: 'category', title: 'Kategori', width: '10%', render: categoryFormatter },
-                        { data: 'company', title: 'Firma', width: '10%', render: companyFormatter },
-                        { data: 'name', title: 'Ürün Adı', width: '11%' },
-                        { data: 'material', title: 'Malzeme', width: '8%' },
-                        { data: 'price', title: 'Fiyat', width: '8%' },
-                        { data: 'piece', title: 'Adet', width: '8%' },
-                        {
-                            data: 'status', title: 'Durum', width: '10%',
-                            render: function (data) {
-                                switch (data) {
-                                    case 1:
-                                        return 'SATIŞTA';
-                                    case 2:
-                                        return 'KALDIRILDI';
-                                    case 3:
-                                        return 'ONAY BEKLİYOR';
-                                    default:
-                                        return '';
-                                }
-                            }
-                        },
-                        { data: 'description', title: 'Açıklama', width: '10%' },
-                        {
-                            data: null, title: '', width: '33%',
-                            render: function (data, type, row) {
-                                return '<button class="btn btn-primary open-edit-modal" ' +
-                                    'data-productid="' + row.id + '" ' +
-                                    'data-productname="' + row.name + '" ' +
-                                    'data-productmaterial="' + row.material + '" ' +
-                                    'data-productprice="' + row.price + '" ' +
-                                    'data-productpiece="' + row.piece + '" ' +
-                                    'data-productdescription="' + row.description + '" ' +
-                                    'data-productstatus="' + row.status + '" ' +
-                                    'data-productcategory="' + row.category.name + '" ' +
-                                    'data-productcompany="' + row.company.name + '">Düzenle</button>' +
-                                    '<button class="btn btn-success open-approve-modal" ' +
-                                    'data-productid="' + row.id + '" ' +
-                                    'data-productstatus="' + row.status + '">Onayla</button>' +
-                                    '<button class="btn btn-warning open-delete-modal" ' +
-                                    'data-productid="' + row.id + '" ' +
-                                    'data-productstatus="' + row.status + '">Kaldır</button>';
-                            }
-                        }
-                    ],
-                    paging: true,
-                    lengthMenu: [10, 20, 30, 40, 50],
-                    order: [[0, 'desc']],
-                    responsive: true,
-                    autoWidth: true,
-                    width: '100%'
-                });
+                    showDatas(data);
 
-
-
-                console.log(data);
-            },
-            error: function (error) {
-                console.log(error);
-            }
-        });
+                },
+                error: function (error) {
+                    console.log(error);
+                }
+            });
     }
 
+    function showDatas(data) {
+        var productGrid = $('#productGrid');
+
+        if (productGrid.length) {
+            productGrid.jqGrid('GridUnload');
+
+            productGrid.jqGrid({
+                data: data,
+                colModel: [
+                    { name: 'id', label: 'ID', width: 40 },
+                    { name: 'category', label: 'Kategori', width: 100, formatter: categoryFormatter },
+                    { name: 'company', label: 'Firma', width: 100, formatter: companyFormatter },
+                    { name: 'name', label: 'Ürün Adı', width: 110 },
+                    { name: 'material', label: 'Malzeme', width: 80 },
+                    { name: 'price', label: 'Fiyat', width: 80 },
+                    { name: 'piece', label: 'Adet', width: 80 },
+                    {
+                        name: 'status', label: 'Durum', width: 100,
+                        formatter: function (cellValue) {
+                            switch (cellValue) {
+                                case 1:
+                                    return 'SATIŞTA';
+                                case 2:
+                                    return 'KALDIRILDI';
+                                case 3:
+                                    return 'ONAY BEKLİYOR';
+                                default:
+                                    return '';
+                            }
+                        }
+                    },
+                    { name: 'description', label: 'Açıklama', width: 100 },
+                    {
+                        name: 'actions', label: '', width: 200,
+                        formatter: function (cellValue, options, rowObject) {
+                            var buttons = '<button class="btn btn-primary open-edit-modal" ' +
+                                'data-productid="' + rowObject.id + '" ' +
+                                'data-productname="' + rowObject.name + '" ' +
+                                'data-productmaterial="' + rowObject.material + '" ' +
+                                'data-productprice="' + rowObject.price + '" ' +
+                                'data-productpiece="' + rowObject.piece + '" ' +
+                                'data-productdescription="' + rowObject.description + '" ' +
+                                'data-productstatus="' + rowObject.status + '" ' +
+                                'data-productcategory="' + (rowObject.category && rowObject.category.name ? rowObject.category.name : '') + '" ' +
+                                'data-productcompany="' + (rowObject.company && rowObject.company.name ? rowObject.company.name : '') + '">Düzenle</button>' +
+                                '<button class="btn btn-success open-approve-modal" ' +
+                                'data-productid="' + rowObject.id + '" ' +
+                                'data-productstatus="' + rowObject.status + '">Onayla</button>' +
+                                '<button class="btn btn-warning open-delete-modal" ' +
+                                'data-productid="' + rowObject.id + '" ' +
+                                'data-productstatus="' + rowObject.status + '">Kaldır</button>';
+                            return buttons;
+                        }
+                    }
+                ],
+                pager: '#productGridPager',
+                rowNum: 10,
+                rowList: [10, 20, 30, 40, 50],
+                sortname: 'id',
+                viewrecords: true,
+                autoheight: true,
+                autoWidth: true,
+                responsive: true
+            });
+        }
+    }
 
 
     function openDeleteUrunModal(button) {

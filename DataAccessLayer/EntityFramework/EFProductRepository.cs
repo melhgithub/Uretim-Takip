@@ -14,6 +14,16 @@ namespace DataAccessLayer.EntityFramework
 {
     public class EFProductRepository : GenericRepository<Product>, IProductDal
     {
+        public async Task<List<Product>> GetListByCompanyID(int companyID)
+        {
+            using (var context = new Context())
+            {
+                return await context.Products
+                .Where(p => p.CompanyID == companyID)
+                .ToListAsync();
+            }
+        }
+
         public List<Product> GetListWithIncludes()
         {
             using (var context = new Context())
@@ -33,5 +43,6 @@ namespace DataAccessLayer.EntityFramework
                                              .ToListAsync();
             }
         }
+
     }
 }

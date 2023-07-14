@@ -9,6 +9,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Uretim_Takip.Dtos;
+using Uretim_Takip.Models;
 
 namespace Uretim_Takip.Controllers
 {
@@ -19,41 +20,46 @@ namespace Uretim_Takip.Controllers
         CompanyManager companyManager = new CompanyManager(new EFCompanyRepository());
         CustomerManager customerManager = new CustomerManager(new EFCustomerRepository());
 
-        public IActionResult Index(CompanyFilterDto filter)
+        public IActionResult Index()
         {
             var companies = companyManager.GetList();
 
-            if (!string.IsNullOrEmpty(filter.Name))
-            {
-                companies = companies.Where(p => p.Name.Contains(filter.Name)).ToList();
-            }
+            var filter = new CompanyFilterDto();
 
-            if (!string.IsNullOrEmpty(filter.Description))
+            var model = new CompaniesViewModel
             {
-                companies = companies.Where(p => p.Description.Contains(filter.Description)).ToList();
-            }
+                Companies = companies,
+                FilterDto = filter
+            };
 
-            if (!string.IsNullOrEmpty(filter.PhoneNumber))
+
+            return View(model);
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> GetCompanyData()
+        {
+
+            var companies = await this.companyManager.GetListAsync();
+
+            var companyData = companies.Select(p => new
             {
-                companies = companies.Where(p => p.PhoneNumber.Contains(filter.PhoneNumber)).ToList();
-            }
+                ID = p.ID,
+                Name = p.Name,
+                phonenumber = p.PhoneNumber,
+                Mail = p.Mail,
+                Status = p.Status,
+                Description = p.Description,
+                Password = p.Password
+            });
 
-            if (!string.IsNullOrEmpty(filter.Mail))
-            {
-                companies = companies.Where(p => p.Mail.Contains(filter.Mail)).ToList();
-            }
-
-            if (filter.Status > 0)
-            {
-                companies = companies.Where(p => p.Status.Equals(filter.Status)).ToList();
-            }
-
-            return View((companies.ToList(), filter));
+            return Json(companyData);
         }
 
         [HttpPost]
         public IActionResult AddCompany(CompanyAddDto company)
         {
+            string message = "";
             try
             {
                 var companyToAdd = new Company
@@ -69,19 +75,20 @@ namespace Uretim_Takip.Controllers
             }
             catch (Exception)
             {
-                TempData["Message"] = "Firma eklenirken bir sorun oluştu! Lütfen bilgileri kontrol ediniz.";
+                message =  "Firma eklenirken bir sorun oluştu! Lütfen bilgileri kontrol ediniz.";
 
-                return RedirectToAction(nameof(Index));
+                return Json(message);
             }
 
-            TempData["Message"] = "Firma başarıyla kaydedildi!";
+            message =  "Firma başarıyla kaydedildi!";
 
-            return RedirectToAction(nameof(Index));
+            return Json(message);
         }
 
         [HttpPost]
         public IActionResult EditCompany(CompanyEditDto company)
         {
+            string message = "";
             if (company != null)
             {
                 try
@@ -100,29 +107,30 @@ namespace Uretim_Takip.Controllers
 
                         companyManager.CompanyUpdate(companyToUpdate);
 
-                        TempData["Message"] = "Firma başarıyla güncellendi!";
+                        message =  "Firma başarıyla güncellendi!";
                     }
                     else
                     {
-                        TempData["Message"] = "Güncellenmek istenen firma bulunamadı!";
+                        message =  "Güncellenmek istenen firma bulunamadı!";
                     }
                 }
                 catch (Exception)
                 {
-                    TempData["Message"] = "Firma güncellenirken bir sorun oluştu! Lütfen bilgileri kontrol ediniz.";
+                    message =  "Firma güncellenirken bir sorun oluştu! Lütfen bilgileri kontrol ediniz.";
                 }
             }
             else
             {
-                TempData["Message"] = "Hata oluştu!";
+                message =  "Hata oluştu!";
             }
 
-            return RedirectToAction(nameof(Index));
+            return Json(message);
         }
 
         [HttpPost]
         public IActionResult DeleteCompany(CompanyDeleteDto company)
         {
+            string message = "";
             if (company != null)
             {
                 try
@@ -134,29 +142,30 @@ namespace Uretim_Takip.Controllers
                         companyToDelete.Status = (CompanyStatuses)2;
                         companyManager.CompanyUpdate(companyToDelete);
 
-                        TempData["Message"] = "Firma başarıyla kaldırıldı!";
+                        message =  "Firma başarıyla kaldırıldı!";
                     }
                     else
                     {
-                        TempData["Message"] = "Kaldırılmak istenen firma bulunamadı!";
+                        message =  "Kaldırılmak istenen firma bulunamadı!";
                     }
                 }
                 catch (Exception)
                 {
-                    TempData["Message"] = "Firma kaldırılırken bir sorun oluştu! Lütfen bilgileri kontrol ediniz.";
+                    message =  "Firma kaldırılırken bir sorun oluştu! Lütfen bilgileri kontrol ediniz.";
                 }
             }
             else
             {
-                TempData["Message"] = "Hata oluştu!";
+                message =  "Hata oluştu!";
             }
 
-            return RedirectToAction(nameof(Index));
+            return Json(message);
         }
 
         [HttpPost]
         public IActionResult ApproveCompany(CompanyApproveDto company)
         {
+            string message = "";
             if (company != null)
             {
                 try
@@ -168,24 +177,24 @@ namespace Uretim_Takip.Controllers
                         companyToApprove.Status = (CompanyStatuses)1;
                         companyManager.CompanyUpdate(companyToApprove);
 
-                        TempData["Message"] = "Firma başarıyla onaylandı!";
+                        message =  "Firma başarıyla onaylandı!";
                     }
                     else
                     {
-                        TempData["Message"] = "Onaylanmak istenen firma bulunamadı!";
+                        message =  "Onaylanmak istenen firma bulunamadı!";
                     }
                 }
                 catch (Exception)
                 {
-                    TempData["Message"] = "Firma onaylanırken bir sorun oluştu! Lütfen bilgileri kontrol ediniz.";
+                    message =  "Firma onaylanırken bir sorun oluştu! Lütfen bilgileri kontrol ediniz.";
                 }
             }
             else
             {
-                TempData["Message"] = "Hata oluştu!";
+                message =  "Hata oluştu!";
             }
 
-            return RedirectToAction(nameof(Index));
+            return Json(message);
         }
     }
 }

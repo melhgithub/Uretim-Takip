@@ -11,8 +11,6 @@ namespace EntityLayer.Concrete
     public enum CompanyStatuses
     {
         // Status.Removed.DisplayName(); //KALDIRILDI ŞEKLİNDE KULLANILACAK
-        [Description("TÜMÜ")]
-        All = 0,
 
         [Description("AKTİF")]
         Approved = 1,

@@ -49,5 +49,9 @@ namespace DataAccessLayer.ServiceConcrete
         {
             _productionDal.Update(production);
         }
+        public async Task<List<Production>> GetListAsync()
+        {
+            return await _productionDal.GetListAsync();
+        }
     }
 }

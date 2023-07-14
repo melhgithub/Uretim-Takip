@@ -12,8 +12,6 @@ namespace EntityLayer.Concrete
     public enum ProductionStatuses
     {
         // Status.Removed.DisplayName(); //KALDIRILDI ŞEKLİNDE KULLANILACAK
-        [Description("TÜMÜ")]
-        All = 0,
 
         [Description("Üretimde")]
         Approved = 1,

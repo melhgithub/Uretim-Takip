@@ -49,5 +49,14 @@ namespace DataAccessLayer.ServiceConcrete
         {
             _offerDal.Update(offer);
         }
+        public async Task<List<Offer>> GetListWithIncludesAsync()
+        {
+            return await _offerDal.GetListWithIncludesAsync();
+        }
+
+        public List<Offer> GetListWithIncludes()
+        {
+            return _offerDal.GetListWithIncludes();
+        }
     }
 }

@@ -16,6 +16,6 @@ namespace DataAccessLayer.ServiceAbstract
         List<string> GetCompanyNames();
         Company GetByID(int ID);
         int GetCompanyIdByName(string companyName);
-        Task<List<Category>> GetListAsync();
+        Task<List<Company>> GetListAsync();
     }
 }

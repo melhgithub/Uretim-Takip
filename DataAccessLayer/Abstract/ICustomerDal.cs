@@ -9,5 +9,8 @@ namespace DataAccessLayer.Abstract
 {
     public interface ICustomerDal : IGenericDal<Customer>
     {
+        List<string> GetCustomerNames();
+        Customer GetByName(string customerName);
+        Task<List<Customer>> GetListAsync();
     }
 }

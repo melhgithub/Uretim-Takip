@@ -8,6 +8,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Uretim_Takip.Dtos;
+using Uretim_Takip.Models;
 
 namespace Uretim_Takip.Controllers
 {
@@ -19,47 +20,46 @@ namespace Uretim_Takip.Controllers
         CustomerManager customerManager = new CustomerManager(new EFCustomerRepository());
 
 
-        public IActionResult Index(CustomerFilterDto filter)
+        public IActionResult Index()
         {
-            var customers = customerManager.GetList().AsQueryable();
+            var customers = customerManager.GetList();
 
-            if (!string.IsNullOrEmpty(filter.Name))
+            var filter = new CustomerFilterDto();
+
+            var model = new CustomersViewModel
             {
-                customers = customers.Where(p => p.Name.Contains(filter.Name));
-            }
+                Customers = customers,
+                FilterDto = filter
+            };
 
-            if (!string.IsNullOrEmpty(filter.LastName))
+            return View(model);
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> GetCustomerData()
+        {
+
+            var customers = await this.customerManager.GetListAsync();
+
+            var customerData = customers.Select(p => new
             {
-                customers = customers.Where(p => p.LastName.Contains(filter.LastName));
-            }
+                ID = p.ID,
+                Name = p.Name,
+                lastname = p.LastName,
+                phonenumber = p.PhoneNumber,
+                Mail = p.Mail,
+                Status = p.Status,
+                Description = p.Description,
+                Password = p.Password
+            });
 
-            if (!string.IsNullOrEmpty(filter.Description))
-            {
-                customers = customers.Where(p => p.Description.Contains(filter.Description));
-            }
-
-            if (!string.IsNullOrEmpty(filter.PhoneNumber))
-            {
-                customers = customers.Where(p => p.PhoneNumber.Contains(filter.PhoneNumber));
-            }
-
-            if (!string.IsNullOrEmpty(filter.Mail))
-            {
-                customers = customers.Where(p => p.Mail.Contains(filter.Mail));
-            }
-
-            if (filter.Status > 0)
-            {
-                customers = customers.Where(p => p.Status.Equals(filter.Status));
-            }
-
-
-            return View((customers.ToList(), filter));
+            return Json(customerData);
         }
 
         [HttpPost]
         public IActionResult AddCustomer(CustomerAddDto customer)
         {
+            string message = "";
             if (customer != null)
             {
                 try
@@ -75,28 +75,29 @@ namespace Uretim_Takip.Controllers
                         Status = customer.Status,
                     };
                     customerManager.CustomerAdd(customerToAdd);
-                    TempData["Message"] = "Müşteri başarıyla kaydedildi!";
+                    message =  "Müşteri başarıyla kaydedildi!";
                 }
                 catch (Exception)
                 {
-                    TempData["Message"] = "Müşteri eklenirken bir sorun oluştu! Lütfen bilgileri kontrol ediniz.";
+                    message =  "Müşteri eklenirken bir sorun oluştu! Lütfen bilgileri kontrol ediniz.";
 
-                    return RedirectToAction(nameof(Index));
+                    return Json(message);
                 }
             }
             else
             {
-                TempData["Message"] = "Hata oluştu!";
+                message =  "Hata oluştu!";
             }
 
             
 
-            return RedirectToAction(nameof(Index));
+            return Json(message);
         }
 
         [HttpPost]
         public IActionResult EditCustomer(CustomerEditDto customer)
         {
+            string message = "";
             if (customer != null)
             {
                 try
@@ -116,29 +117,30 @@ namespace Uretim_Takip.Controllers
 
                         customerManager.CustomerUpdate(customerToUpdate);
 
-                        TempData["Message"] = "Müşteri başarıyla güncellendi!";
+                        message =  "Müşteri başarıyla güncellendi!";
                     }
                     else
                     {
-                        TempData["Message"] = "Güncellenmek istenen müşteri bulunamadı!";
+                        message =  "Güncellenmek istenen müşteri bulunamadı!";
                     }
                 }
                 catch (Exception)
                 {
-                    TempData["Message"] = "Müşteri güncellenirken bir sorun oluştu! Lütfen bilgileri kontrol ediniz.";
+                    message =  "Müşteri güncellenirken bir sorun oluştu! Lütfen bilgileri kontrol ediniz.";
                 }
             }
             else
             {
-                TempData["Message"] = "Hata oluştu!";
+                message =  "Hata oluştu!";
             }
 
-            return RedirectToAction(nameof(Index));
+            return Json(message);
         }
 
         [HttpPost]
         public IActionResult DeleteCustomer(CustomerDeleteDto customer)
         {
+            string message = "";
             if (customer != null)
             {
                 try
@@ -150,29 +152,30 @@ namespace Uretim_Takip.Controllers
                         customerToDelete.Status = (CustomerStatuses)2;
                         customerManager.CustomerUpdate(customerToDelete);
 
-                        TempData["Message"] = "Müşteri başarıyla kaldırıldı!";
+                        message =  "Müşteri başarıyla kaldırıldı!";
                     }
                     else
                     {
-                        TempData["Message"] = "Kaldırılmak istenen müşteri bulunamadı!";
+                        message =  "Kaldırılmak istenen müşteri bulunamadı!";
                     }
                 }
                 catch (Exception)
                 {
-                    TempData["Message"] = "Müşteri kaldırılırken bir sorun oluştu! Lütfen bilgileri kontrol ediniz.";
+                    message =  "Müşteri kaldırılırken bir sorun oluştu! Lütfen bilgileri kontrol ediniz.";
                 }
             }
             else
             {
-                TempData["Message"] = "Hata oluştu!";
+                message =  "Hata oluştu!";
             }
 
-            return RedirectToAction(nameof(Index));
+            return Json(message);
         }
 
         [HttpPost]
         public IActionResult ApproveCustomer(CustomerApproveDto customer)
         {
+            string message = "";
             if (customer != null)
             {
                 try
@@ -184,24 +187,24 @@ namespace Uretim_Takip.Controllers
                         customerToApprove.Status = (CustomerStatuses)1;
                         customerManager.CustomerUpdate(customerToApprove);
 
-                        TempData["Message"] = "Müşteri başarıyla onaylandı!";
+                        message =  "Müşteri başarıyla onaylandı!";
                     }
                     else
                     {
-                        TempData["Message"] = "Onaylanmak istenen müşteri bulunamadı!";
+                        message =  "Onaylanmak istenen müşteri bulunamadı!";
                     }
                 }
                 catch (Exception)
                 {
-                    TempData["Message"] = "Müşteri onaylanırken bir sorun oluştu! Lütfen bilgileri kontrol ediniz.";
+                    message =  "Müşteri onaylanırken bir sorun oluştu! Lütfen bilgileri kontrol ediniz.";
                 }
             }
             else
             {
-                TempData["Message"] = "Hata oluştu!";
+                message =  "Hata oluştu!";
             }
 
-            return RedirectToAction(nameof(Index));
+            return Json(message);
         }
     }
 }

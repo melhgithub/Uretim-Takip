@@ -15,8 +15,8 @@ namespace DataAccessLayer.ServiceAbstract
         void ProductUpdate(Product product);
         List<Product> GetList();
         List<Product> GetListWithIncludes();
-
         Task<List<Product>> GetListWithIncludesAsync();
+        Task<List<Product>> GetListByCompanyID(int companyID);
         Product GetByID(int ID);
         
     }

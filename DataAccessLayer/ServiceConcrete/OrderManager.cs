@@ -50,5 +50,9 @@ namespace DataAccessLayer.ServiceConcrete
         {
             _orderDal.Update(order);
         }
+        public async Task<List<Order>> GetListAsync()
+        {
+            return await _orderDal.GetListAsync();
+        }
     }
 }

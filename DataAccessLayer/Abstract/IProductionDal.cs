@@ -9,5 +9,6 @@ namespace DataAccessLayer.Abstract
 {
     public interface IProductionDal : IGenericDal<Production>
     {
+        Task<List<Production>> GetListAsync();
     }
 }

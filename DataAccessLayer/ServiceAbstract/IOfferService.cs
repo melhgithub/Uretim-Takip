@@ -15,5 +15,7 @@ namespace DataAccessLayer.ServiceAbstract
         void OfferUpdate(Offer offer);
         List<Offer> GetList();
         Offer GetByID(int ID);
+        List<Offer> GetListWithIncludes();
+        Task<List<Offer>> GetListWithIncludesAsync();
     }
 }

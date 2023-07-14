@@ -15,5 +15,6 @@ namespace DataAccessLayer.ServiceAbstract
         void ProductionUpdate(Production production);
         List<Production> GetList();
         Production GetByID(int ID);
+        Task<List<Production>> GetListAsync();
     }
 }

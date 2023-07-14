@@ -28,6 +28,11 @@ namespace DataAccessLayer.ServiceConcrete
             return _productDal.GetListAll();
         }
 
+        public async Task<List<Product>> GetListByCompanyID(int companyID)
+        {
+            return await _productDal.GetListByCompanyID(companyID);
+        }
+
         public List<Product> GetListWithIncludes()
         {
             return _productDal.GetListWithIncludes();

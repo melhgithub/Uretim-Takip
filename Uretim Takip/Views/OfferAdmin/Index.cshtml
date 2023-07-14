@@ -2,7 +2,7 @@
 @using Uretim_Takip.Dtos
 @using System.ComponentModel
 @using Newtonsoft.Json
-@model (List<Offer> offers, OfferFilterDto filter)
+@model OffersViewModel
 @{
     ViewData["Title"] = "Index";
     Layout = "~/Views/Shared/AdminLayout.cshtml";
@@ -10,81 +10,8 @@
 
 <h1>Teklif Listesi</h1>
 
-<button class="btn btn-primary" onclick="openYeniTeklifModalfirst()">Yeni Teklif</button>
-<br />
+@await Html.PartialAsync("_ScriptImports")
 
-@if (TempData["Message"] != null)
-{
-    <div class="alert alert-info alert-dismissible">
-        <button type="button" class="close" data-dismiss="alert" aria-hidden="true">×</button>
-        <h5><i class="icon fas fa-info"></i> Bilgilendirme</h5>
-        @TempData["Message"]
-    </div>
-}
-
-<form id="filterForm" method="get" action="@Url.Action("Index", "OfferAdmin")">
-    <div class="card">
-        <div class="card-header">
-            <h3 class="card-title">
-                <i class="fas fa-filter"></i>
-                Filtrele
-            </h3>
-        </div>
-        <div class="card-body">
-            <div class="row">
-                <div class="col-sm-2">
-                    <dt>Kategori:</dt>
-                    <select name="CustomerName" class="form-control" value="@Model.filter.CustomerName">
-                        <option value="">TÜMÜ</option>
-                        @foreach (var customerName in Model.filter.Customers)
-                        {
-                            <option value="@customerName" selected="@(customerName == Model.filter.CustomerName)">@customerName</option>
-                        }
-                    </select>
-                </div>
-                <div class="col-sm-2">
-                    <dt>Firma:</dt>
-                    <select name="CompanyName" class="form-control" data="@Model.filter.CompanyName">
-                        <option value="">TÜMÜ</option>
-                        @foreach (var companyName in Model.filter.Companies)
-                        {
-                            <option value="@companyName" selected="@(companyName == Model.filter.CompanyName)">@companyName</option>
-                        }
-                    </select>
-                </div>
-
-                <div class="col-sm-1">
-                    <dt>Fiyat:</dt>
-                    <input type="number" class="form-control" name="price" placeholder="Fiyat" value="@Model.filter.Price">
-                </div>
-
-                <div class="col-sm-1">
-                    <dt>Ürün Adeti:</dt>
-                    <input type="number" class="form-control" name="productpice" placeholder="Ürün Adeti" value="@Model.filter.ProductPiece">
-                </div>
-
-                <div class="col-sm-2">
-                    <dt>Durum:</dt>
-                    <select name="Status" class="form-control" data="@Enum.GetName(typeof(OfferStatuses), Model.filter.Status)">
-                        @foreach (var enumValue in Enum.GetValues(typeof(OfferStatuses)))
-                        {
-                            string description = ((DescriptionAttribute)typeof(OfferStatuses)
-                                .GetMember(enumValue.ToString())[0]
-                                .GetCustomAttributes(typeof(DescriptionAttribute), false)
-                                .FirstOrDefault())?.Description ?? enumValue.ToString();
-
-                            <option value="@enumValue" selected="@((OfferStatuses)enumValue == Model.filter.Status)">@description</option>
-                        }
-                    </select>
-                </div>
-
-                <div class="col-sm-12">
-                    <button type="submit" class="btn btn-primary w-100">Filtrele</button>
-                </div>
-            </div>
-        </div>
-    </div>
-</form>
 
 <div class="card">
     <div class="card-header">
@@ -95,23 +22,13 @@
     </div>
 
     <div class="card-body">
+        <button id="openYeniTeklifModalButton" class="btn btn-primary">Yeni Teklif</button>
+        <br />
 
-        <table id="offerTable" class="table">
-            <thead>
-                <tr>
-                    <th>ID</th>
-                    <th>Müşteri</th>
-                    <th>Firma</th>
-                    <th>Fiyat</th>
-                    <th>Ürün Adeti</th>
-                    <th>Durum</th>
-                    <th></th>
-                </tr>
-            </thead>
-            <tbody>
-                @await Html.PartialAsync("_OfferTable")
-            </tbody>
-        </table>
+        <div id="offerTable" class="table-responsive">
+            <table id="offerGrid" class="table table-bordered table-striped"></table>
+            <div id="offerGridPager"></div>
+        </div>
 
     </div>
 
@@ -120,108 +37,64 @@
 
 
 <script>
-  var selectedCompany = null;
-
-  function openYeniTeklifModalfirst() {
-    $.dialog({
-      title: 'Teklif Oluştur',
-      content: `
-        <form id="adetForm">
-          <div class="form-group">
-            <label for="Adet">Kaç adet ürün eklemek istiyorsunuz?</label>
-            <input type="number" id="Adet" name="Adet" class="form-control" required />
-          </div>
-          <div class="form-group">
-            <button id="devamButon" class="btn btn-primary w-100" type="button" onclick="openYeniTeklifModal()">Devam Et</button>
-          </div>
-        </form>
-      `
+    $(document).ready(function () {
+        takeOfferData();
     });
-  }
 
-  function openYeniTeklifModal() {
-    var adetInput = document.getElementById("Adet");
+    var firstModal = null;
 
-    if (adetInput) {
-      var adet = adetInput.value;
+    var dropdownOptions = {};
 
-      var dropdownHTML = '';
-      for (var i = 0; i < adet; i++) {
-          dropdownHTML += `
-        <div class="form-group">
-          <label for="Product${i + 1}">Ürün ${i + 1} :</label>
-          <select id="Product${i + 1}" name="Product${i + 1}" class="form-control" required>
-            <option value="">Seçiniz</option>
-          </select>
-        </div>
-        <div class="form-group">
-          <label for="ProductPrice${i + 1}">Fiyat ${i + 1} :</label>
-          <input type="number" id="ProductPrice${i + 1}" name="ProductPrice${i + 1}" class="form-control" step="0.01" required />
-        </div>
-        <div class="form-group">
-          <label for="ProductPiece${i + 1}">Adet ${i + 1} :</label>
-          <input type="number" id="ProductPiece${i + 1}" name="ProductPiece${i + 1}" class="form-control" required />
-        </div>
-      `;
-      }
+    var adet;
 
-      $.dialog({
-        title: 'Teklif Oluştur',
-        content: `
-          <form id="offerForm" method="post" action="@Url.Action("AddOffer", "OfferAdmin")">
 
-            <input type="hidden" name="Adet" value="${adet}" />
+    function addNewProductDropdown() {
 
-            <div class="form-group">
-              <label for="CompanyName">Firma :</label>
-              <select id="CompanyName" name="CompanyName" class="form-control" required onchange="updateProductDropdowns(this.value)">
-                <option value="">Seçiniz</option>
-                @foreach (var company in Model.filter.Companies) {
-                  <option value="@company">@company</option>
-                }
-              </select>
-            </div>
+            var selectedCompany = document.getElementById("CompanyName").value;
+            var newProductButton = document.getElementById("newProductButton");
+            var dropdownContainer = document.getElementById("ProductDropdownContainer");
+            console.log(selectedCompany);
 
-            <div id="ProductDropdownContainer">
-              ${dropdownHTML}
-            </div>
+            if (!selectedCompany) {
+                newProductButton.disabled = true;
+                return;
+            }
 
-            <div class="form-group">
-              <label for="CustomerName">Müşteri :</label>
-              <select id="CustomerName" name="CustomerName" class="form-control" required>
-                @foreach (var customer in Model.filter.Customers) {
-                  <option value="@customer">@customer</option>
-                }
-              </select>
-            </div>
+            else {
+                adet++;
+                var newProductHTML = `
+                <div class="form-group">
+                  <label for="Product${adet}">Ürün ${adet} :</label>
+                  <select id="Product${adet}" name="Product${adet}" class="form-control" required>
+                    <option value="">Seçiniz</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label for="ProductPrice${adet}">Fiyat ${adet} :</label>
+                  <input type="number" id="ProductPrice${adet}" name="ProductPrice${adet}" class="form-control" step="0.01" required />
+                </div>
+                <div class="form-group">
+                  <label for="ProductPiece${adet}">Adet ${adet} :</label>
+                  <input type="number" id="ProductPiece${adet}" name="ProductPiece${adet}" class="form-control" required />
+                </div>
+              `;
 
-            <div class="form-group">
-              <label for="Price">Toplam Fiyat :</label>
-              <input type="number" id="Price" name="Price" class="form-control" step="0.01" required />
-            </div>
+                updateProductDropdowns(selectedCompany);
 
-            <div class="form-group">
-              <select id="Status" name="Status" class="form-control" required hidden>
-                <option value="0">Beklemede</option>
-                <option value="1">Teklifte</option>
-                <option value="2">KALDIRILDI</option>
-                <option value="3">Teklif İptal Edildi</option>
-                <option value="4">Siparişe Geçildi</option>
-              </select>
-            </div>
 
-            <div class="form-group">
-              <input id="createTeklif" type="submit" value="Oluştur" class="btn btn-primary w-100" />
-            </div>
-          </form>
-        `
-      });
+                document.getElementById("ProductDropdownContainer").innerHTML += newProductHTML;
 
-    }
-    }
+                var newProductDropdown = document.getElementById(`Product${adet}`);
+
+                getProductOptions(selectedCompany, newProductDropdown);
+            }
+
+
+        }
 
     function updateProductDropdowns(selectedCompany) {
-        var adet = document.getElementById("Adet").value;
+        console.log(selectedCompany);
+        console.log(adet);
         var productDropdownContainer = document.getElementById("ProductDropdownContainer");
 
         if (adet && productDropdownContainer) {
@@ -231,35 +104,404 @@
 
             }
         }
+
+        var newProductButton = document.getElementById("newProductButton");
+        newProductButton.disabled = !selectedCompany;
+
+        var adetValue = adet;
+        var adetInput = document.getElementById('adet');
+        adetInput.value = adetValue;
+        console.log(adet);
+        console.log(adet);
     }
 
     function getProductOptions(selectedCompany, productDropdown) {
+
+        var adetValue = adet;
+        var adetInput = document.getElementById('adet');
+        adetInput.value = adetValue;
+        console.log(adet);
+        console.log(adet);
+
         if (selectedCompany && productDropdown) {
-            $.ajax({
-                url: "/OfferAdmin/GetProductsByCompany",
-                method: "GET",
-                data: { companyName: selectedCompany },
-                success: function (response) {
-                    var optionItems = "";
-                    var products = response.$values;
-                    console.log(products);
+            if (dropdownOptions[selectedCompany]) {
+                productDropdown.innerHTML = dropdownOptions[selectedCompany];
+            }
 
+            else {
+                $.ajax({
+                    url: "/OfferAdmin/GetProductsByCompany",
+                    method: "GET",
+                    data: { companyName: selectedCompany },
+                    success: function (response) {
+                        var optionItems = "";
+                        var products = response.$values;
+                        console.log(products);
 
-                    if (products && products.length > 0) {
-                        products.forEach(function (product) {
-                            optionItems += `<option value="${product.id}">${product.name}</option>`;
-                        });
+                        if (products && products.length > 0) {
+                            products.forEach(function (product) {
+                                optionItems += `<option value="${product.id}">${product.name}</option>`;
+                            });
+                        }
+
+                        dropdownOptions[selectedCompany] = `<option value="">Seçiniz</option>` + optionItems;
+
+                        productDropdown.innerHTML = dropdownOptions[selectedCompany];
+
+                    },
+                    error: function (error) {
+                        console.error(error);
                     }
+                });
+            }
+        }
+    }
 
-                    productDropdown.innerHTML = `<option value="">Seçiniz</option>` + optionItems;
-                },
-                error: function (error) {
-                    console.error(error);
-                }
+
+
+    function openYeniTeklifModal() {
+        adet = 1;
+        if (adet) {
+            var dropdownHTML = `
+                    <div class="form-group">
+                      <label for="Product${adet}">Ürün ${adet} :</label>
+                      <select id="Product${adet}" name="Product${adet}" class="form-control" required>
+                        <option value="">Seçiniz</option>
+                      </select>
+                    </div>
+                    <div class="form-group">
+                      <label for="ProductPrice${adet}">Fiyat ${adet} :</label>
+                      <input type="number" id="ProductPrice${adet}" name="ProductPrice${adet}" class="form-control" step="0.01" required />
+                    </div>
+                    <div class="form-group">
+                      <label for="ProductPiece${adet}">Adet ${adet} :</label>
+                      <input type="number" id="ProductPiece${adet}" name="ProductPiece${adet}" class="form-control" required />
+                    </div>
+                  `;
+            }
+
+            firstModal = $.dialog({
+                title: 'Teklif Oluştur',
+                content: `
+                    <form id="offerForm" method="post" action="@Url.Action("AddOffer", "OfferAdmin")">
+
+                    <input type="hidden" name="adet" id="adet" value="${adet}" />
+
+                    <div class="form-group">
+                      <label for="CompanyName">Firma :</label>
+                        <select id="CompanyName" name="CompanyName" class="form-control" required onchange="updateProductDropdowns(this.value)">
+                        <option value="">Seçiniz</option>
+                        @foreach (var company in Model.FilterDto.Companies) {
+                          <option value="@company">@company</option>
+                        }
+                      </select>
+                    </div>
+
+                    <div class="form-group">
+                      <button id="newProductButton" class="btn btn-primary w-100" type="button" onclick="addNewProductDropdown()">Yeni Ürün</button>
+                    </div>
+
+                    <div id="ProductDropdownContainer">${dropdownHTML}</div>
+
+                        <div class="form-group">
+                            <label for="CustomerName">Müşteri :</label>
+                            <select id="CustomerName" name="CustomerName" class="form-control" required>
+                                @foreach (var customer in Model.FilterDto.Customers) {
+                                    <option value="@customer">@customer</option>
+                                }
+                            </select>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="Price">Toplam Fiyat :</label>
+                            <input type="number" id="Price" name="Price" class="form-control" step="0.01" required />
+                        </div>
+
+                        <div class="form-group">
+                            <select id="Status" name="Status" class="form-control" required hidden>
+                                <option value="0">Beklemede</option>
+                                <option value="1">Teklifte</option>
+                                <option value="2">KALDIRILDI</option>
+                                <option value="3">Teklif İptal Edildi</option>
+                                <option value="4">Siparişe Geçildi</option>
+                            </select>
+                        </div>
+
+                        <div class="form-group">
+                            <input id="createTeklif" type="submit" value="Oluştur" class="btn btn-primary w-100" />
+                        </div>
+                    </form>
+                `
+            });
+        firstModal.$content.css({ "width": "500px" });
+        firstModal.$content.find(".form-group").css({ "margin-bottom": "15px" });
+        firstModal.$content.find("label").css({ "width": "30%" });
+    }
+
+
+    function openDeleteTeklifModal(button) {
+    var data = button.dataset;
+        firstModal = $.dialog({
+    title: 'Teklif Kaldır',
+    content: `
+    <!-- ${JSON.stringify(data)} -->
+    <form method="post" action="@Url.Action("DeleteOffer", "OfferAdmin")">
+
+        <div class="form-group">
+            <label>Kaldırmak istiyor musunuz ?</label>
+        </div>
+
+        <div class="form-group">
+            <input type="text" id="ID" name="ID" class="form-control" value="${data.offerid}" required hidden />
+
+        </div>
+
+        <div class="form-group">
+            <select id="Status" name="Status" class="form-control" data="${data.offerstatus}" required hidden>
+                <option value="5" ${data.offerstatus =='Pending' ? 'selected' : '' }>Beklemede</option>
+                <option value="1" ${data.offerstatus =='Approved' ? 'selected' : '' }>Siparişte</option>
+                <option value="2" ${data.offerstatus =='Removed' ? 'selected' : '' }>KALDIRILDI</option>
+                <option value="2" ${data.offerstatus =='Cancelled' ? 'selected' : '' }>Sipariş İptal Edildi</option>
+                <option value="2" ${data.offerstatus =='Finished' ? 'selected' : '' }>Üretime Geçildi</option>
+            </select>
+        </div>
+
+        <div class="form-group">
+            <input type="submit" value="Kaldır" class="btn btn-warning w-100" />
+        </div>
+
+    </form>
+    `
+    });
+    }
+
+
+    function openOrderTeklifModal(button) {
+    var data = button.dataset;
+        firstModal = $.dialog({
+    title: 'Siparişe Geç',
+    content: `
+    <!-- ${JSON.stringify(data)} -->
+    <form method="post" action="@Url.Action("GoToOrder", "OfferAdmin")">
+
+        <div class="form-group">
+            <label>Siparişe geçmek istiyor musunuz ?</label>
+        </div>
+
+        <div class="form-group">
+            <input type="text" id="ID" name="ID" class="form-control" value="${data.offerid}" required hidden />
+
+        </div>
+
+        <div class="form-group">
+            <select id="Status" name="Status" class="form-control" data="${data.offerstatus}" required hidden>
+                <option value="5" ${data.offerstatus == 'Pending' ? 'selected' : ''}>Beklemede</option>
+                <option value="1" ${data.offerstatus == 'Approved' ? 'selected' : ''}>Teklifte</option>
+                <option value="2" ${data.offerstatus == 'Removed' ? 'selected' : ''}>KALDIRILDI</option>
+                <option value="3" ${data.offerstatus == 'Cancelled' ? 'selected' : ''}>Teklif İptal Edildi</option>
+                <option value="4" ${data.offerstatus == 'Finished' ? 'selected' : '' }>Siparişe Geçildi</option>
+            </select>
+        </div>
+
+        <div class="form-group">
+            <input type="submit" value="Onayla" class="btn btn-primary w-100" />
+        </div>
+
+    </form>
+    `
+    });
+    }
+
+
+    function openApproveTeklifModal(button) {
+    var data = button.dataset;
+        firstModal = $.dialog({
+    title: 'Teklif Onayla',
+    content: `
+    <!-- ${JSON.stringify(data)} -->
+    <form method="post" action="@Url.Action("ApproveOffer", "OfferAdmin")">
+
+        <div class="form-group">
+            <label>Onaylamak istiyor musunuz ?</label>
+        </div>
+
+        <div class="form-group">
+            <input type="text" id="ID" name="ID" class="form-control" value="${data.offerid}" required hidden />
+
+        </div>
+
+        <div class="form-group">
+            <select id="Status" name="Status" class="form-control" data="${data.offerstatus}" required hidden>
+                <option value="5" ${data.offerstatus == 'Pending' ? 'selected' : ''}>Beklemede</option>
+                <option value="1" ${data.offerstatus == 'Approved' ? 'selected' : ''}>Teklifte</option>
+                <option value="2" ${data.offerstatus == 'Removed' ? 'selected' : ''}>KALDIRILDI</option>
+                <option value="3" ${data.offerstatus == 'Cancelled' ? 'selected' : ''}>Teklif İptal Edildi</option>
+                <option value="4" ${data.offerstatus == 'Finished' ? 'selected' : '' }>Siparişe Geçildi</option>
+            </select>
+        </div>
+
+        <div class="form-group">
+            <input type="submit" value="Onayla" class="btn btn-primary w-100" />
+        </div>
+
+    </form>
+    `
+    });
+    }
+
+    $(document).on('click', '.open-delete-modal', function () {
+        openDeleteTeklifModal(this);
+    });
+
+    $(document).on('click', '.open-approve-modal', function () {
+        openApproveTeklifModal(this);
+    });
+
+    $(document).on('click', '.open-edit-modal', function () {
+        openEditTeklifModal(this);
+    });
+
+    $(document).on('click', '.open-offertoorder-modal', function () {
+        openOrderTeklifModal(this);
+    });
+
+    $(document).on('click', '#openYeniTeklifModalButton', function () {
+        openYeniTeklifModal();
+    });
+
+    $(document).on('submit', 'form', function (e) {
+        e.preventDefault();
+        var form = $(this);
+
+        $.ajax({
+            url: form.attr('action'),
+            type: form.attr('method'),
+            data: form.serialize(),
+            success: function (response) {
+                var message = response;
+                mesajDialog = $.dialog({
+                    title: 'İşlem Sonucu',
+                    content: message,
+                    closeButton: false
+                });
+                setTimeout(function () {
+                    mesajDialog.close();
+                    if (firstModal) {
+                        firstModal.close();
+                    }
+                    takeOfferData();
+                }, 1500);
+            },
+            error: function (error) {
+                alert("Başarısız");
+            }
+        });
+    });
+
+    $(document).ajaxError(function () {
+        adet = 0;
+    });
+
+    function customerFormatter(cellValue, options, rowObject) {
+        return rowObject.customer && rowObject.customer.name ? rowObject.customer.name : '';
+    }
+
+    function companyFormatter(cellValue, options, rowObject) {
+        return rowObject.company && rowObject.company.name ? rowObject.company.name : '';
+    }
+
+    function takeOfferData() {
+        var offerGrid = $('#offerGrid');
+
+        $.ajax({
+            url: '/OfferAdmin/GetOfferData',
+            type: 'GET',
+            dataType: 'json',
+            success: function (response) {
+                var data = response.$values;
+                console.log(data);
+
+                showDatas(data);
+
+            },
+            error: function (error) {
+                console.log(error);
+            }
+        });
+    }
+
+    function showDatas(data) {
+        var offerGrid = $('#offerGrid');
+
+        if (offerGrid.length) {
+            offerGrid.jqGrid('GridUnload');
+
+            offerGrid.jqGrid({
+                data: data,
+                colModel: [
+                    { name: 'id', label: 'ID', width: 40 },
+                    { name: 'customer', label: 'Müşteri', width: 90, formatter: customerFormatter },
+                    { name: 'company', label: 'Firma', width: 90, formatter: companyFormatter },
+                    { name: 'price', label: 'Fiyat', width: 80 },
+                    { name: 'productpiece', label: 'Ürün Adeti', width: 80 },
+                    {
+                        name: 'status', label: 'Durum', width: 80,
+                        formatter: function (cellValue) {
+                            switch (cellValue) {
+                                case 1:
+                                    return 'Teklifte';
+                                case 2:
+                                    return 'KALDIRILDI';
+                                case 3:
+                                    return 'Teklif İptal Edildi';
+                                case 4:
+                                    return 'Siparişe Geçildi';
+                                case 5:
+                                    return 'Beklemede';
+                                default:
+                                    return '';
+                            }
+                        }
+                    },
+                    {
+                        name: 'actions', label: '', width: 300,
+                        formatter: function (cellValue, options, rowObject) {
+                            if (rowObject.status === 4) {
+                                return '';
+                            }
+
+                            var buttons = '<button class="btn btn-primary open-edit-modal" ' +
+                                'data-offerid="' + rowObject.id + '" ' +
+                                'data-offername="' + rowObject.name + '" ' +
+                                'data-offerprice="' + rowObject.price + '" ' +
+                                'data-offerproductpiece="' + rowObject.productpiece + '" ' +
+                                'data-offerstatus="' + rowObject.status + '" ' +
+                                'data-offercustomer="' + (rowObject.customer && rowObject.customer.name ? rowObject.customer.name : '') + '" ' +
+                                'data-offercompany="' + (rowObject.company && rowObject.company.name ? rowObject.company.name : '') + '">Düzenle</button>' +
+                                '<button class="btn btn-success open-offertoorder-modal" ' +
+                                'data-offerid="' + rowObject.id + '" ' +
+                                'data-offerstatus="' + rowObject.status + '">Siparişe Geç</button>' +
+                                '<button class="btn btn-success open-approve-modal" ' +
+                                'data-offerid="' + rowObject.id + '" ' +
+                                'data-offerstatus="' + rowObject.status + '">Onayla</button>' +
+                                '<button class="btn btn-warning open-delete-modal" ' +
+                                'data-offerid="' + rowObject.id + '" ' +
+                                'data-offerstatus="' + rowObject.status + '">Kaldır</button>';
+                            return buttons;
+                        }
+                    }
+                ],
+                pager: '#offerGridPager',
+                rowNum: 10,
+                rowList: [10, 20, 30, 40, 50],
+                sortname: 'id',
+                viewrecords: true,
+                autoheight: true,
+                autoWidth: true,
+                responsive: true
             });
         }
     }
 
 
 </script>
-@*alert(JSON.stringify(products));*@

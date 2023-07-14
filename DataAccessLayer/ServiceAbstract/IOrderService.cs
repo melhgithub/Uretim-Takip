@@ -15,5 +15,6 @@ namespace DataAccessLayer.ServiceAbstract
         void OrderUpdate(Order order);
         List<Order> GetList();
         Order GetByID(int ID);
+        Task<List<Order>> GetListAsync();
     }
 }

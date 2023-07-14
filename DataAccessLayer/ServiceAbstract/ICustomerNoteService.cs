@@ -14,5 +14,6 @@ namespace DataAccessLayer.ServiceAbstract
         void CustomerNoteUpdate(CustomerNote customerNote);
         List<CustomerNote> GetList();
         CustomerNote GetByID(int ID);
+        Task<List<CustomerNote>> GetListAsync();
     }
 }
